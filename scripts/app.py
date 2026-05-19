@@ -63,20 +63,15 @@ st.caption(f"Multi-product Seedance 2.0 campaign factory · ברוך הבא {_us
 # ════════════════════════════════════════════════════════════
 chrome_ok = pg.is_chrome_available()
 
-_IS_CLOUD = bool(os.environ.get("STREAMLIT_RUNTIME_HOSTNAME"))
+# Detect cloud: Streamlit Cloud sets HOME=/home/adminuser and works from /mount/src/
+_IS_CLOUD = (
+    str(PROJECT_ROOT).startswith("/mount/")
+    or os.environ.get("HOME", "").startswith("/home/adminuser")
+)
 
 with st.sidebar:
     st.header("⚙️ Status")
-
-    # Claude.ai (Chrome CDP) — only relevant locally, hidden in cloud
-    if not _IS_CLOUD:
-        title = f"{'✅' if chrome_ok else '⚠️'} Claude.ai (Chrome, port {pg.CDP_PORT})"
-        with st.expander(title, expanded=False):
-            if chrome_ok:
-                st.write(f"Chrome מתחבר על פורט {pg.CDP_PORT}. ודא ש-claude.ai פתוח, מחובר, ועל מודל Opus 4.7.")
-            else:
-                st.write("Chrome עם CDP לא רץ. הפעל:")
-                st.code("START_CHROME.bat", language="text")
+    # Claude.ai (Chrome CDP) row removed — irrelevant in cloud, distracting locally.
 
     # Anthropic API (cloud fallback)
     try:
