@@ -41,7 +41,7 @@ echo === Files staged: ===
 git diff --cached --name-only
 echo.
 
-git commit -m "fix: pin Python to 3.11 and use st.login() for default-provider TOML" -m "Streamlit Cloud was using Python 3.14 which broke the OAuth callback handler. Adding .python-version + runtime.txt pins it to 3.11. Also calling st.login() instead of st.login('google') because our [auth] block uses default-provider pattern (keys at top level, no [auth.google] subsection)."
+git commit -m "feat: custom stateless OAuth (HMAC-signed state)" -m "Replaced Streamlit's st.login() with our own Google OAuth flow that uses HMAC-signed state instead of session storage. This sidesteps the MismatchingStateError bug in Streamlit Cloud's multi-replica setup. Redirect URI changes from /oauth2callback to / (the app root). Also drops Authlib dependency."
 
 if errorlevel 1 (
     echo.
