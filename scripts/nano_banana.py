@@ -20,7 +20,22 @@ from dotenv import load_dotenv
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(PROJECT_ROOT / ".env")
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+# Streamlit Cloud fallback.
+try:
+    import streamlit as st
+    _SECRETS = dict(st.secrets) if hasattr(st, "secrets") else {}
+except Exception:
+    _SECRETS = {}
+
+
+def _get(key, default=""):
+    val = os.getenv(key)
+    if val:
+        return val
+    return _SECRETS.get(key, default)
+
+
+GEMINI_API_KEY = _get("GEMINI_API_KEY", "")
 
 GEMINI_IMAGE_MODEL = "gemini-2.5-flash-image-preview"
 
@@ -43,9 +58,11 @@ def generate_scene_image(
     Returns:
         Path to the saved PNG.
     """
-    if not GEMINI_API_KEY:
+    gemini_key = _get("GEMINI_API_KEY", "")
+    if not gemini_key:
         raise RuntimeError(
-            "GEMINI_API_KEY missing in .env. Get one at https://aistudio.google.com/apikey"
+            "GEMINI_API_KEY missing. Set it in .env locally OR in Streamlit Cloud "
+            "Settings -> Secrets. Get one at https://aistudio.google.com/apikey"
         )
 
     # Build content parts: text + reference images
@@ -65,7 +82,7 @@ def generate_scene_image(
 
     url = (
         "https://generativelanguage.googleapis.com/v1beta/models/"
-        f"{GEMINI_IMAGE_MODEL}:generateContent?key={GEMINI_API_KEY}"
+        f"{GEMINI_IMAGE_MODEL}:generateContent?key={gemini_key}"
     )
 
     payload = {
@@ -116,9 +133,9 @@ def generate_scene_image(
 
 
 def is_available() -> bool:
-    return bool(GEMINI_API_KEY)
+    return bool(_get("GEMINI_API_KEY"))
 
 
 if __name__ == "__main__":
-    print(f"GEMINI_API_KEY: {'✓' if GEMINI_API_KEY else '✗ MISSING'}")
+    print(f"GEMINI_API_KEY: {'✓' if _get('GEMINI_API_KEY') else '✗ MISSING'}")
     print(f"Model: {GEMINI_IMAGE_MODEL}")

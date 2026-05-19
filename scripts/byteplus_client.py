@@ -13,17 +13,52 @@ from dotenv import load_dotenv
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(PROJECT_ROOT / ".env")
 
-ARK_API_KEY = os.getenv("ARK_API_KEY")
-ARK_BASE_URL = os.getenv("ARK_BASE_URL", "https://ark.ap-southeast.bytepluses.com/api/v3").rstrip("/")
-SEEDANCE_MODEL_ID = os.getenv("SEEDANCE_MODEL_ID", "dreamina-seedance-2-0-260128")
+# Streamlit Cloud fallback: secrets are in st.secrets, not os.environ.
+try:
+    import streamlit as st
+    _SECRETS = dict(st.secrets) if hasattr(st, "secrets") else {}
+except Exception:
+    _SECRETS = {}
 
-if not ARK_API_KEY:
-    raise RuntimeError("ARK_API_KEY missing in .env")
 
-HEADERS = {
-    "Authorization": f"Bearer {ARK_API_KEY}",
-    "Content-Type": "application/json",
-}
+def _get(key, default=""):
+    """Read config from env first, then Streamlit secrets, then default."""
+    val = os.getenv(key)
+    if val:
+        return val
+    return _SECRETS.get(key, default)
+
+
+def _api_key():
+    """Lazy lookup so import doesn't fail before Streamlit loads secrets."""
+    k = _get("ARK_API_KEY")
+    if not k:
+        raise RuntimeError(
+            "ARK_API_KEY missing. Set it in .env locally OR in Streamlit Cloud "
+            "Settings -> Secrets."
+        )
+    return k
+
+
+def _base_url():
+    return _get("ARK_BASE_URL", "https://ark.ap-southeast.bytepluses.com/api/v3").rstrip("/")
+
+
+def _model_id():
+    return _get("SEEDANCE_MODEL_ID", "dreamina-seedance-2-0-260128")
+
+
+def _headers():
+    return {
+        "Authorization": f"Bearer {_api_key()}",
+        "Content-Type": "application/json",
+    }
+
+
+# Backwards-compatible module attributes (deprecated, prefer the _get() helpers).
+ARK_API_KEY = _get("ARK_API_KEY")
+ARK_BASE_URL = _get("ARK_BASE_URL", "https://ark.ap-southeast.bytepluses.com/api/v3").rstrip("/")
+SEEDANCE_MODEL_ID = _get("SEEDANCE_MODEL_ID", "dreamina-seedance-2-0-260128")
 
 
 def submit_task(prompt, image_urls=None, video_urls=None, audio_urls=None,
@@ -40,7 +75,7 @@ def submit_task(prompt, image_urls=None, video_urls=None, audio_urls=None,
         content.append({"type": "audio_url", "audio_url": {"url": url}, "role": "reference_audio"})
 
     payload = {
-        "model": model or SEEDANCE_MODEL_ID,
+        "model": model or _model_id(),
         "content": content,
         "ratio": ratio,
         "duration": duration,
@@ -50,8 +85,8 @@ def submit_task(prompt, image_urls=None, video_urls=None, audio_urls=None,
     if extra_payload:
         payload.update(extra_payload)
 
-    url = f"{ARK_BASE_URL}/contents/generations/tasks"
-    response = requests.post(url, json=payload, headers=HEADERS, timeout=30)
+    url = f"{_base_url()}/contents/generations/tasks"
+    response = requests.post(url, json=payload, headers=_headers(), timeout=30)
 
     if response.status_code >= 400:
         raise RuntimeError(f"BytePlus submit failed [{response.status_code}]: {response.text}")
@@ -73,12 +108,12 @@ def poll_task(task_id, interval=15, max_wait=900, log=print):
         log: callback for progress messages. Default = print to stdout.
              Pass a Streamlit status.write or any other callable.
     """
-    url = f"{ARK_BASE_URL}/contents/generations/tasks/{task_id}"
+    url = f"{_base_url()}/contents/generations/tasks/{task_id}"
     elapsed = 0
     log(f"   ⏳ ממתין... typical: 60-180 שניות, מתעדכן כל {interval}s")
 
     while elapsed < max_wait:
-        response = requests.get(url, headers=HEADERS, timeout=30)
+        response = requests.get(url, headers=_headers(), timeout=30)
         if response.status_code >= 400:
             raise RuntimeError(f"BytePlus poll failed [{response.status_code}]: {response.text}")
         data = response.json()
@@ -141,9 +176,10 @@ def extract_video_url(task_result):
 
 def test_connection():
     """Submit a tiny no-reference task to verify auth + endpoint + model name."""
-    masked = ARK_API_KEY[:8] + "..." + ARK_API_KEY[-4:] if ARK_API_KEY else "(missing)"
-    print(f"Base URL : {ARK_BASE_URL}")
-    print(f"Model    : {SEEDANCE_MODEL_ID}")
+    key = _get("ARK_API_KEY")
+    masked = key[:8] + "..." + key[-4:] if key else "(missing)"
+    print(f"Base URL : {_base_url()}")
+    print(f"Model    : {_model_id()}")
     print(f"API Key  : {masked}")
     print()
 

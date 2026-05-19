@@ -25,8 +25,23 @@ from dotenv import load_dotenv
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(PROJECT_ROOT / ".env")
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-TAVILY_API_KEY = os.getenv("TAVILY_API_KEY", "")
+# Streamlit Cloud fallback.
+try:
+    import streamlit as st
+    _SECRETS = dict(st.secrets) if hasattr(st, "secrets") else {}
+except Exception:
+    _SECRETS = {}
+
+
+def _get(key, default=""):
+    val = os.getenv(key)
+    if val:
+        return val
+    return _SECRETS.get(key, default)
+
+
+GEMINI_API_KEY = _get("GEMINI_API_KEY", "")
+TAVILY_API_KEY = _get("TAVILY_API_KEY", "")
 
 
 # ─── Gemini Vision: product detection ──────────────────────────────────────
@@ -51,9 +66,11 @@ Return ONLY the JSON. No backticks, no explanation."""
 
 def detect_product(image_path: Path) -> dict:
     """Use Gemini 2.5 Flash to auto-detect product details from image."""
-    if not GEMINI_API_KEY:
+    gemini_key = _get("GEMINI_API_KEY", "")
+    if not gemini_key:
         raise RuntimeError(
-            "GEMINI_API_KEY missing in .env. Get one at https://aistudio.google.com/apikey"
+            "GEMINI_API_KEY missing. Set it in .env locally OR in Streamlit Cloud "
+            "Settings -> Secrets. Get one at https://aistudio.google.com/apikey"
         )
 
     image_path = Path(image_path)
@@ -71,7 +88,7 @@ def detect_product(image_path: Path) -> dict:
 
     url = (
         "https://generativelanguage.googleapis.com/v1beta/models/"
-        f"gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+        f"gemini-2.5-flash:generateContent?key={gemini_key}"
     )
 
     payload = {
@@ -121,9 +138,11 @@ TREND_QUERIES = [
 
 def research_trends(niche: str, max_results_per_query: int = 3, log=print) -> dict:
     """Run all 8 trend queries via Tavily, return aggregated findings."""
-    if not TAVILY_API_KEY:
+    tavily_key = _get("TAVILY_API_KEY", "")
+    if not tavily_key:
         raise RuntimeError(
-            "TAVILY_API_KEY missing in .env. Get one at https://tavily.com/"
+            "TAVILY_API_KEY missing. Set it in .env locally OR in Streamlit Cloud "
+            "Settings -> Secrets. Get one at https://tavily.com/"
         )
 
     from datetime import datetime
@@ -139,7 +158,7 @@ def research_trends(niche: str, max_results_per_query: int = 3, log=print) -> di
             response = requests.post(
                 "https://api.tavily.com/search",
                 json={
-                    "api_key": TAVILY_API_KEY,
+                    "api_key": tavily_key,
                     "query": query,
                     "max_results": max_results_per_query,
                     "search_depth": "basic",
@@ -169,5 +188,5 @@ def research_trends(niche: str, max_results_per_query: int = 3, log=print) -> di
 # ─── Quick smoke test ──────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    print(f"GEMINI_API_KEY: {'✓' if GEMINI_API_KEY else '✗ MISSING'}")
-    print(f"TAVILY_API_KEY: {'✓' if TAVILY_API_KEY else '✗ MISSING'}")
+    print(f"GEMINI_API_KEY: {'✓' if _get('GEMINI_API_KEY') else '✗ MISSING'}")
+    print(f"TAVILY_API_KEY: {'✓' if _get('TAVILY_API_KEY') else '✗ MISSING'}")

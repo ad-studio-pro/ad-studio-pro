@@ -51,14 +51,27 @@ with st.sidebar:
     st.header("⚙️ Status")
 
     # Claude.ai (Chrome CDP)
-    title = f"{'✅' if chrome_ok else '❌'} Claude.ai (port {pg.CDP_PORT})"
+    title = f"{'✅' if chrome_ok else '⚠️'} Claude.ai (Chrome, port {pg.CDP_PORT})"
     with st.expander(title, expanded=False):
         if chrome_ok:
             st.write(f"Chrome מתחבר על פורט {pg.CDP_PORT}. ודא ש-claude.ai פתוח, מחובר, ועל מודל Opus 4.7.")
         else:
-            st.write("Chrome עם CDP לא רץ. הפעל:")
+            st.write("Chrome עם CDP לא רץ (זה תקין בענן). הפעל מקומית:")
             st.code("START_CHROME.bat", language="text")
-            st.write("ודא שהחלון פתוח עם claude.ai מחובר.")
+
+    # Anthropic API (cloud fallback)
+    try:
+        from anthropic_client import is_available as _anth_ok
+        anthropic_ok = _anth_ok()
+    except Exception:
+        anthropic_ok = False
+    title = f"{'✅' if anthropic_ok else '⚠️'} Anthropic API (cloud)"
+    with st.expander(title, expanded=False):
+        if anthropic_ok:
+            st.write("Anthropic API מוגדר. ירוץ Claude דרך ה-API (cloud mode).")
+        else:
+            st.warning("חסר ANTHROPIC_API_KEY ב-Streamlit Secrets")
+            st.write("השג ב-https://console.anthropic.com/")
 
     # Gemini
     title = f"{'✅' if GEMINI_API_KEY else '⚠️'} Gemini Vision + Nano Banana 2"
@@ -205,9 +218,15 @@ user_notes = st.text_area(
 # ════════════════════════════════════════════════════════════
 st.header("2️⃣ שלב 1: מחקר טרנדים + ניתוח מוצר")
 
-s1_disabled = not st.session_state.get("image_path") or not chrome_ok or not GEMINI_API_KEY or not TAVILY_API_KEY
+# LLM is available if Chrome+CDP is up locally OR the Anthropic API key is set (cloud).
+try:
+    from anthropic_client import is_available as _anthropic_ok
+    llm_ok = chrome_ok or _anthropic_ok()
+except Exception:
+    llm_ok = chrome_ok
+s1_disabled = not st.session_state.get("image_path") or not llm_ok or not GEMINI_API_KEY or not TAVILY_API_KEY
 if st.button("🔍 הרץ Stage 1 — Research", type="primary", disabled=s1_disabled,
-              help="חייב: תמונה + Chrome + Gemini + Tavily" if s1_disabled else None):
+              help="חייב: תמונה + (Chrome או Anthropic API) + Gemini + Tavily" if s1_disabled else None):
     with st.status("🔍 Stage 1 בריצה...", expanded=True) as s:
         try:
             result = stage1_runner.run_stage1(
@@ -258,7 +277,7 @@ with st.expander(f"🎯 בחירת פורמטים ({total_videos} וידאו) �
     auto_picked = sorted([f for f, c in auto_split.items() if c > 0], key=lambda f: -auto_split.get(f, 0))
 
     # SMART PICK button — uses research from Stage 1 to let Claude decide
-    smart_disabled = not st.session_state.get("stage1") or not chrome_ok
+    smart_disabled = not st.session_state.get("stage1") or not llm_ok
     smart_help = (
         "חייב להריץ קודם Stage 1 (כדי שיהיה לקלוד מחקר לעבוד איתו) + Chrome פעיל"
         if smart_disabled else
@@ -330,7 +349,7 @@ with st.expander(f"🎯 בחירת פורמטים ({total_videos} וידאו) �
 # ════════════════════════════════════════════════════════════
 st.header("3️⃣ שלב 2: תכנית קמפיין")
 
-s2_disabled = not st.session_state.get("stage1") or not chrome_ok
+s2_disabled = not st.session_state.get("stage1") or not llm_ok
 if st.button("🗂 הרץ Stage 2 — Plan", type="primary", disabled=s2_disabled):
     with st.status("🗂 Stage 2 בריצה...", expanded=True) as s:
         try:
@@ -402,7 +421,7 @@ if st.session_state.get("stage2"):
 # ════════════════════════════════════════════════════════════
 st.header("4️⃣ שלב 3: כתיבת פרומטים לכל וידאו")
 
-s3_disabled = not st.session_state.get("stage2") or not chrome_ok
+s3_disabled = not st.session_state.get("stage2") or not llm_ok
 col_s3a, col_s3b = st.columns([1, 3])
 with col_s3a:
     s3_limit = st.number_input("הגבל למספר וידאו ראשונים (0=הכל)",

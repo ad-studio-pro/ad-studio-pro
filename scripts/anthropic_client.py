@@ -15,12 +15,36 @@ from dotenv import load_dotenv
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(PROJECT_ROOT / ".env")
 
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
-ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-opus-4-6")
+# Streamlit Cloud fallback: secrets are in st.secrets, not os.environ.
+try:
+    import streamlit as st
+    _SECRETS = dict(st.secrets) if hasattr(st, "secrets") else {}
+except Exception:
+    _SECRETS = {}
+
+
+def _get(key, default=""):
+    val = os.getenv(key)
+    if val:
+        return val
+    return _SECRETS.get(key, default)
+
+
+def _api_key():
+    return _get("ANTHROPIC_API_KEY", "")
+
+
+def _model():
+    return _get("ANTHROPIC_MODEL", "claude-opus-4-6")
+
+
+# Backwards-compatible module attributes.
+ANTHROPIC_API_KEY = _get("ANTHROPIC_API_KEY", "")
+ANTHROPIC_MODEL = _get("ANTHROPIC_MODEL", "claude-opus-4-6")
 
 
 def is_available() -> bool:
-    return bool(ANTHROPIC_API_KEY)
+    return bool(_api_key())
 
 
 def call_claude_api(user_message: str,
@@ -38,10 +62,12 @@ def call_claude_api(user_message: str,
         system: optional system prompt
         max_tokens: response length cap
     """
-    if not ANTHROPIC_API_KEY:
+    api_key = _api_key()
+    if not api_key:
         raise RuntimeError(
-            "ANTHROPIC_API_KEY missing in .env. "
-            "Get one at https://console.anthropic.com/"
+            "ANTHROPIC_API_KEY missing. Set it in .env locally OR in "
+            "Streamlit Cloud Settings -> Secrets. "
+            "Get a key at https://console.anthropic.com/"
         )
 
     # Build content blocks (images first, then text — Anthropic recommends this)
@@ -72,21 +98,22 @@ def call_claude_api(user_message: str,
 
     content.append({"type": "text", "text": user_message})
 
+    model = _model()
     headers = {
-        "x-api-key": ANTHROPIC_API_KEY,
+        "x-api-key": api_key,
         "anthropic-version": "2023-06-01",
         "content-type": "application/json",
     }
 
     payload = {
-        "model": ANTHROPIC_MODEL,
+        "model": model,
         "max_tokens": max_tokens,
         "messages": [{"role": "user", "content": content}],
     }
     if system:
         payload["system"] = system
 
-    log(f"  [anthropic] {ANTHROPIC_MODEL} — {len(content)} content blocks, {len(user_message)} chars")
+    log(f"  [anthropic] {model} — {len(content)} content blocks, {len(user_message)} chars")
     response = requests.post(
         "https://api.anthropic.com/v1/messages",
         headers=headers,
@@ -107,5 +134,5 @@ def call_claude_api(user_message: str,
 
 
 if __name__ == "__main__":
-    print(f"ANTHROPIC_API_KEY: {'✓' if ANTHROPIC_API_KEY else '✗ MISSING'}")
-    print(f"Model: {ANTHROPIC_MODEL}")
+    print(f"ANTHROPIC_API_KEY: {'✓' if _api_key() else '✗ MISSING'}")
+    print(f"Model: {_model()}")

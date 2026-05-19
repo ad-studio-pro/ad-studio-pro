@@ -16,14 +16,31 @@ from dotenv import load_dotenv
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(PROJECT_ROOT / ".env")
 
-IMGBB_API_KEY = os.getenv("IMGBB_API_KEY")
+# Streamlit Cloud fallback.
+try:
+    import streamlit as st
+    _SECRETS = dict(st.secrets) if hasattr(st, "secrets") else {}
+except Exception:
+    _SECRETS = {}
+
+
+def _get(key, default=""):
+    val = os.getenv(key)
+    if val:
+        return val
+    return _SECRETS.get(key, default)
+
+
+IMGBB_API_KEY = _get("IMGBB_API_KEY")
 
 
 def upload_to_imgbb(image_path: Path) -> str:
     """Upload to imgbb. Returns a public URL."""
-    if not IMGBB_API_KEY:
+    key = _get("IMGBB_API_KEY")
+    if not key:
         raise RuntimeError(
-            "IMGBB_API_KEY missing in .env. "
+            "IMGBB_API_KEY missing. Set it in .env locally OR in "
+            "Streamlit Cloud Settings -> Secrets. "
             "Get a free key at https://api.imgbb.com/"
         )
 
@@ -36,7 +53,7 @@ def upload_to_imgbb(image_path: Path) -> str:
 
     response = requests.post(
         "https://api.imgbb.com/1/upload",
-        data={"key": IMGBB_API_KEY, "image": encoded},
+        data={"key": key, "image": encoded},
         timeout=60,
     )
     response.raise_for_status()
