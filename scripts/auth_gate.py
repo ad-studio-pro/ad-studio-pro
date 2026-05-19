@@ -53,7 +53,13 @@ def _auth_configured() -> bool:
         auth = st.secrets.get("auth", None)
         if not auth:
             return False
+        # Look for client_id either directly under [auth] (default-provider pattern)
+        # or under [auth.google] (named-provider pattern).
         cid = auth.get("client_id", "")
+        if not cid:
+            google = auth.get("google", None)
+            if google:
+                cid = google.get("client_id", "")
         return bool(cid) and "REPLACE_WITH" not in cid
     except Exception:
         return False
