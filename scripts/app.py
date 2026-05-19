@@ -27,6 +27,12 @@ except Exception:
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+# ── AUTH GATE (Google OAuth, @neobrands.io only) ─────────────
+# Must run BEFORE st.set_page_config in the body of the app so the
+# landing/rejection screens can set their own page configs.
+from auth_gate import require_login, render_logout_button
+_user = require_login()  # blocks via st.stop() if not authorized
+
 # Core modules
 from byteplus_client import submit_task, poll_task, download_video, extract_video_url
 from upload_image import upload_image, IMGBB_API_KEY
@@ -50,24 +56,27 @@ OUTPUTS_DIR = PROJECT_ROOT / "outputs"
 
 st.set_page_config(page_title="Ad Studio Pro", page_icon="🎬", layout="wide")
 st.title("🎬 Ad Studio Pro")
-st.caption("Multi-product Seedance 2.0 campaign factory: Research → Plan → Prompts → Videos")
+st.caption(f"Multi-product Seedance 2.0 campaign factory · ברוך הבא {_user['email']}")
 
 # ════════════════════════════════════════════════════════════
 # Sidebar — collapsible status (closed by default)
 # ════════════════════════════════════════════════════════════
 chrome_ok = pg.is_chrome_available()
 
+_IS_CLOUD = bool(os.environ.get("STREAMLIT_RUNTIME_HOSTNAME"))
+
 with st.sidebar:
     st.header("⚙️ Status")
 
-    # Claude.ai (Chrome CDP)
-    title = f"{'✅' if chrome_ok else '⚠️'} Claude.ai (Chrome, port {pg.CDP_PORT})"
-    with st.expander(title, expanded=False):
-        if chrome_ok:
-            st.write(f"Chrome מתחבר על פורט {pg.CDP_PORT}. ודא ש-claude.ai פתוח, מחובר, ועל מודל Opus 4.7.")
-        else:
-            st.write("Chrome עם CDP לא רץ (זה תקין בענן). הפעל מקומית:")
-            st.code("START_CHROME.bat", language="text")
+    # Claude.ai (Chrome CDP) — only relevant locally, hidden in cloud
+    if not _IS_CLOUD:
+        title = f"{'✅' if chrome_ok else '⚠️'} Claude.ai (Chrome, port {pg.CDP_PORT})"
+        with st.expander(title, expanded=False):
+            if chrome_ok:
+                st.write(f"Chrome מתחבר על פורט {pg.CDP_PORT}. ודא ש-claude.ai פתוח, מחובר, ועל מודל Opus 4.7.")
+            else:
+                st.write("Chrome עם CDP לא רץ. הפעל:")
+                st.code("START_CHROME.bat", language="text")
 
     # Anthropic API (cloud fallback)
     try:
@@ -133,6 +142,9 @@ with st.sidebar:
         for k in ("stage1", "stage2", "stage3", "image_path", "brief_text"):
             st.session_state.pop(k, None)
         st.rerun()
+
+# Show logged-in user + logout in the sidebar.
+render_logout_button()
 
 # ════════════════════════════════════════════════════════════
 # Stage 0 — Inputs

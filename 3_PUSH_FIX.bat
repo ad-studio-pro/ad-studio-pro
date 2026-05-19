@@ -29,6 +29,9 @@ git add scripts/upload_image.py
 git add scripts/stage1_research.py
 git add scripts/nano_banana.py
 git add scripts/app.py
+git add scripts/auth_gate.py
+git add requirements.txt
+git add GOOGLE_OAUTH_SETUP.md
 git add 3_PUSH_FIX.bat
 
 echo.
@@ -36,7 +39,7 @@ echo === Files staged: ===
 git diff --cached --name-only
 echo.
 
-git commit -m "fix: push st.secrets into os.environ before importing modules" -m "Module-level credential constants were being snapshotted as empty strings on Streamlit Cloud because st.secrets wasn't read in time. Now app.py copies all secrets into os.environ at the top, before importing any client modules. This makes all subsequent os.getenv() calls resolve correctly."
+git commit -m "feat: Google OAuth gate for @neobrands.io + hide Chrome row in cloud" -m "Replaces streamlit-authenticator with Streamlit native st.login() OAuth. Only @neobrands.io emails are allowed. Sidebar Chrome status row is hidden in cloud mode (STREAMLIT_RUNTIME_HOSTNAME). Requires [auth] section in Streamlit Secrets — see GOOGLE_OAUTH_SETUP.md."
 
 if errorlevel 1 (
     echo.
