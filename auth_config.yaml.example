@@ -1,0 +1,25 @@
+# Auth configuration for streamlit-authenticator
+# RUN ONCE: python scripts/auth_make_hash.py YourPassword123
+# Then paste the hash below for each user.
+
+credentials:
+  usernames:
+    roi:
+      email: agent1@romarketinggroup.com
+      name: Roi Cohen
+      password: $2b$12$REPLACE_WITH_HASHED_PASSWORD_FROM_auth_make_hash.py
+      role: admin
+    employee1:
+      email: e1@romarketinggroup.com
+      name: Employee One
+      password: $2b$12$REPLACE_WITH_HASHED_PASSWORD
+      role: creator
+
+cookie:
+  expiry_days: 30
+  key: REPLACE_WITH_RANDOM_STRING_32_CHARS
+  name: ad_studio_pro_auth
+
+preauthorized:
+  emails:
+    - "@romarketinggroup.com"

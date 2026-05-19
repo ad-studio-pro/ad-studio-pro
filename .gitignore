@@ -1,0 +1,47 @@
+# Secrets — NEVER push these
+.env
+.env.local
+.env.production
+auth_config.yaml
+*.key
+*.pem
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.Python
+venv/
+env/
+.venv/
+
+# Outputs (large media)
+outputs/videos/*.mp4
+outputs/videos/*.jpg
+outputs/logs/*.json
+outputs/thumbnails/*
+outputs/plans/*.html
+outputs/plans/*.json
+outputs/prompts/*.json
+outputs/prompts/*.md
+outputs/scenes/*.png
+outputs/scenes/*.jpg
+
+# Assets — user-uploaded product images
+assets/product/*.jpg
+assets/product/*.png
+assets/product/*.webp
+assets/characters/*.jpg
+assets/characters/*.png
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Chrome profile (huge)
+*-cdp-profile/
+
+# Keep gitkeep markers
+!**/.gitkeep
