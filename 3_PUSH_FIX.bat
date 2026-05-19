@@ -32,6 +32,8 @@ git add scripts/app.py
 git add scripts/auth_gate.py
 git add requirements.txt
 git add GOOGLE_OAUTH_SETUP.md
+git add .python-version
+git add runtime.txt
 git add 3_PUSH_FIX.bat
 
 echo.
@@ -39,7 +41,7 @@ echo === Files staged: ===
 git diff --cached --name-only
 echo.
 
-git commit -m "fix: call st.login() instead of st.login('google') for default-provider TOML" -m "Our [auth] block has the credentials at top level (default-provider pattern). st.login('google') requires a [auth.google] subsection. Switching to st.login() with no argument matches the TOML structure."
+git commit -m "fix: pin Python to 3.11 and use st.login() for default-provider TOML" -m "Streamlit Cloud was using Python 3.14 which broke the OAuth callback handler. Adding .python-version + runtime.txt pins it to 3.11. Also calling st.login() instead of st.login('google') because our [auth] block uses default-provider pattern (keys at top level, no [auth.google] subsection)."
 
 if errorlevel 1 (
     echo.
