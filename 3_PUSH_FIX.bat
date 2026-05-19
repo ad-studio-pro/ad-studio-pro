@@ -39,7 +39,7 @@ echo === Files staged: ===
 git diff --cached --name-only
 echo.
 
-git commit -m "feat: Google OAuth gate for @neobrands.io + hide Chrome row in cloud" -m "Replaces streamlit-authenticator with Streamlit native st.login() OAuth. Only @neobrands.io emails are allowed. Sidebar Chrome status row is hidden in cloud mode (STREAMLIT_RUNTIME_HOSTNAME). Requires [auth] section in Streamlit Secrets — see GOOGLE_OAUTH_SETUP.md."
+git commit -m "fix: call st.login() instead of st.login('google') for default-provider TOML" -m "Our [auth] block has the credentials at top level (default-provider pattern). st.login('google') requires a [auth.google] subsection. Switching to st.login() with no argument matches the TOML structure."
 
 if errorlevel 1 (
     echo.

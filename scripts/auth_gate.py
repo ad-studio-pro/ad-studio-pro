@@ -135,7 +135,9 @@ def _render_landing():
     )
     st.write("")
     if st.button("🔐 התחבר עם Google", type="primary", use_container_width=True):
-        st.login("google")
+        # Default (single) provider — credentials live at [auth] top-level.
+        # If a [auth.google] subsection is added later, switch to st.login("google").
+        st.login()
     st.write("")
     st.caption(
         "אם אין לך עדיין מייל `@neobrands.io` — פנה למנהל החברה."
