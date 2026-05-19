@@ -108,11 +108,10 @@ def _domain_ok(email: str) -> bool:
 # ── OAuth flow steps ────────────────────────────────────────
 
 
-def _start_login():
-    """Generate signed state, redirect user to Google. No session storage needed."""
+def _build_auth_url() -> str:
+    """Build a Google OAuth URL with a freshly-signed state."""
     cfg = _get_oauth_config()
     state = _make_signed_state(cfg["cookie_secret"])
-
     params = {
         "client_id": cfg["client_id"],
         "redirect_uri": cfg["redirect_uri"],
@@ -122,16 +121,7 @@ def _start_login():
         "prompt": "select_account",  # always show account picker
         "access_type": "online",
     }
-    auth_url = GOOGLE_AUTH_URL + "?" + urlencode(params)
-
-    # Use meta-refresh + JS to redirect — works inside Streamlit.
-    st.markdown(
-        f'<meta http-equiv="refresh" content="0;url={auth_url}">'
-        f'<script>window.location.href = "{auth_url}";</script>',
-        unsafe_allow_html=True,
-    )
-    st.write("🔁 מועבר ל-Google…")
-    st.stop()
+    return GOOGLE_AUTH_URL + "?" + urlencode(params)
 
 
 def _exchange_code_for_user(code: str):
@@ -256,8 +246,14 @@ def _render_landing():
     if err:
         st.warning(err)
     st.write("")
-    if st.button("🔐 התחבר עם Google", type="primary", use_container_width=True):
-        _start_login()
+
+    # Build the auth URL eagerly and render as a real link.
+    # st.link_button is a real <a href> so it actually navigates the
+    # top-level window (no JS / no iframe interference).
+    auth_url = _build_auth_url()
+    st.link_button("🔐 התחבר עם Google", auth_url,
+                   type="primary", use_container_width=True)
+
     st.write("")
     st.caption("אם אין לך עדיין מייל `@neobrands.io` — פנה למנהל החברה.")
 
