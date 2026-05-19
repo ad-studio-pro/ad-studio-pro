@@ -15,6 +15,16 @@ from datetime import datetime, timedelta
 import streamlit as st
 import importlib
 
+# ── Streamlit Cloud → push every secret into os.environ BEFORE we import
+# any of our own modules, so their `os.getenv(...)` calls find the values
+# (otherwise they snapshot an empty value at import time).
+try:
+    for _k, _v in dict(st.secrets).items():
+        if isinstance(_v, (str, int, float)):
+            os.environ.setdefault(str(_k), str(_v))
+except Exception:
+    pass
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 # Core modules

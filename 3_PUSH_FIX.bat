@@ -36,7 +36,7 @@ echo === Files staged: ===
 git diff --cached --name-only
 echo.
 
-git commit -m "fix: lazy credential validation + Streamlit secrets fallback" -m "Move RuntimeError out of module top-level so app.py can import on Streamlit Cloud before secrets are wired. All client files (byteplus, anthropic, upload_image, stage1_research, nano_banana) now read from st.secrets as fallback when os.getenv returns nothing."
+git commit -m "fix: push st.secrets into os.environ before importing modules" -m "Module-level credential constants were being snapshotted as empty strings on Streamlit Cloud because st.secrets wasn't read in time. Now app.py copies all secrets into os.environ at the top, before importing any client modules. This makes all subsequent os.getenv() calls resolve correctly."
 
 if errorlevel 1 (
     echo.
