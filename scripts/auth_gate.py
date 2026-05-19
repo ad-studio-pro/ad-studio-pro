@@ -135,9 +135,9 @@ def _render_landing():
     )
     st.write("")
     if st.button("🔐 התחבר עם Google", type="primary", use_container_width=True):
-        # Default (single) provider — credentials live at [auth] top-level.
-        # If a [auth.google] subsection is added later, switch to st.login("google").
-        st.login()
+        # Use named provider — credentials live under [auth.google] subsection.
+        # Default-provider mode has a known MismatchingStateError bug on Streamlit Cloud.
+        st.login("google")
     st.write("")
     st.caption(
         "אם אין לך עדיין מייל `@neobrands.io` — פנה למנהל החברה."
