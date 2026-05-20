@@ -603,31 +603,75 @@ if st.session_state.get("stage3"):
                 st.session_state["stage3"] = plan
                 st.caption(f"✓ נשמר ב-זיכרון (וידאו {vid})")
 
-# Skip-stage-3 expander
+# Skip-stage-3 expander — accepts plain text (preferred) or JSON
 with st.expander("✏️ אופציה: דלג על Stage 3 — הדבק פרומטים משלך", expanded=False):
-    st.caption("אם יש לך פרומטים מוכנים בכל וידאו — תוכל לערוך כל אחד בנפרד למעלה אחרי שתריץ Stage 3, או להעלות JSON מלא עם prompts כבר בפנים.")
+    st.caption(
+        "**הדרך הקלה:** הדבק כל פרומט בנפרד, מופרדים על ידי שורה עם `===`. "
+        "אני אצור את הקובץ פנימית. **דרך מתקדמת:** הדבק JSON עם `videos`."
+    )
     manual_stage3 = st.text_area(
-        "Plan JSON עם prompts מוכנים",
+        "פרומטים — מופרדים על ידי === (או JSON)",
         height=320,
-        placeholder='{"campaign_name": "...", "videos": [{"id": 1, "format_name": "UGC", "duration_seconds": 15, "prompt": "..."}, ...]}',
+        placeholder=(
+            "Prompt #1 here — UGC video, 15 seconds...\n"
+            "===\n"
+            "Prompt #2 here — Hero shot, 10 seconds...\n"
+            "===\n"
+            "Prompt #3 here — Pattern interrupt...\n"
+        ),
         key="manual_stage3_input",
         label_visibility="collapsed",
     )
+    manual_dur = st.number_input(
+        "משך ברירת מחדל לכל וידאו (שניות)",
+        min_value=5, max_value=30, value=int(default_duration), step=1,
+        key="manual_stage3_dur",
+    )
     if st.button("✅ השתמש בפרומטים הידניים (דלג על Stage 3)", key="use_manual_stage3"):
-        if not manual_stage3.strip():
+        text = manual_stage3.strip()
+        if not text:
             st.error("צריך לכתוב פרומטים")
         else:
+            # Try JSON first (advanced); if it fails, split by === (easy)
+            new_plan = None
             try:
-                new_plan = json.loads(manual_stage3)
-                videos_with_prompts = [v for v in new_plan.get("videos", []) if v.get("prompt")]
-                if not videos_with_prompts:
-                    st.error("חייב להיות לפחות וידאו אחד עם 'prompt'")
-                else:
-                    st.session_state["stage3"] = new_plan
-                    st.success(f"✓ נשמרו {len(videos_with_prompts)} פרומטים. תוכל להמשיך לשלב 4.")
-                    st.rerun()
-            except Exception as e:
-                st.error(f"JSON לא תקין: {e}")
+                parsed = json.loads(text)
+                if isinstance(parsed, dict) and "videos" in parsed:
+                    new_plan = parsed
+            except Exception:
+                pass
+
+            if new_plan is None:
+                # Plain text mode: split by === lines
+                chunks = [c.strip() for c in text.split("\n===\n") if c.strip()]
+                if len(chunks) == 1:  # No separators — try other variants
+                    chunks = [c.strip() for c in text.split("===") if c.strip()]
+                videos = []
+                for i, prompt_text in enumerate(chunks, 1):
+                    videos.append({
+                        "id": i,
+                        "format": 1,
+                        "family": "Manual",
+                        "format_name": "Manual prompt",
+                        "duration_seconds": int(manual_dur),
+                        "prompt": prompt_text,
+                    })
+                new_plan = {
+                    "campaign_name": campaign_name or "Manual prompts",
+                    "total_videos": len(videos),
+                    "videos": videos,
+                }
+
+            videos_with_prompts = [v for v in new_plan.get("videos", []) if v.get("prompt")]
+            if not videos_with_prompts:
+                st.error("לא מצאתי אף פרומט. ודא שאתה מפריד עם === בין פרומטים, או מדביק JSON תקין.")
+            else:
+                st.session_state["stage3"] = new_plan
+                # Stage 2 dummy so Stage 4 button works
+                if not st.session_state.get("stage2"):
+                    st.session_state["stage2"] = new_plan
+                st.success(f"✓ נשמרו {len(videos_with_prompts)} פרומטים. גלול ל-Stage 4 לייצור.")
+                st.rerun()
 
 
 # ════════════════════════════════════════════════════════════
