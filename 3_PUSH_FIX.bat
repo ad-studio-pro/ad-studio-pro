@@ -33,6 +33,8 @@ git add scripts/auth_gate.py
 git add scripts/express_mode.py
 git add scripts/ref_video_helper.py
 git add scripts/upload_video.py
+git add scripts/byteplus_client.py
+git add scripts/app.py
 git add requirements.txt
 git add GOOGLE_OAUTH_SETUP.md
 git add .python-version
@@ -45,7 +47,7 @@ echo === Files staged: ===
 git diff --cached --name-only
 echo.
 
-git commit -m "fix: sanitize video filenames + tmpfiles.org fallback host" -m "catbox.moe was rejecting filenames with spaces/parens (412 Precondition Failed). Now upload_video sanitizes the name to [A-Za-z0-9._-] before upload, retries once, and falls back to tmpfiles.org if catbox keeps rejecting. Also fixes Stage 4 to run with no product images when only a reference video + prompt are provided."
+git commit -m "fix: 120s submit timeout + video player + aspect ratio + ref video" -m "Adds inline video player and download buttons for generated videos. Adds aspect ratio selector in Express mode (per-video + global default). Bumps BytePlus submit_task timeout from 30s to 120s because submitting with reference videos triggers a slow URL verification on their side. Falls back to tmpfiles.org when catbox.moe rejects uploads."
 
 if errorlevel 1 (
     echo.

@@ -86,7 +86,9 @@ def submit_task(prompt, image_urls=None, video_urls=None, audio_urls=None,
         payload.update(extra_payload)
 
     url = f"{_base_url()}/contents/generations/tasks"
-    response = requests.post(url, json=payload, headers=_headers(), timeout=30)
+    # 120s timeout — BytePlus needs to fetch + verify reference media before
+    # returning a task_id; 30s wasn't enough for video references.
+    response = requests.post(url, json=payload, headers=_headers(), timeout=120)
 
     if response.status_code >= 400:
         raise RuntimeError(f"BytePlus submit failed [{response.status_code}]: {response.text}")
