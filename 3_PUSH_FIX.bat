@@ -32,6 +32,7 @@ git add scripts/app.py
 git add scripts/auth_gate.py
 git add scripts/express_mode.py
 git add scripts/ref_video_helper.py
+git add scripts/upload_video.py
 git add requirements.txt
 git add GOOGLE_OAUTH_SETUP.md
 git add .python-version
@@ -44,7 +45,7 @@ echo === Files staged: ===
 git diff --cached --name-only
 echo.
 
-git commit -m "feat: reference video upload (Seedance video imitation)" -m "Adds reference video uploader in Express mode — user can upload up to 3 MP4s (each <=15s). At video generation time these are uploaded to catbox.moe and passed to BytePlus Seedance 2.0 as video_urls, so Seedance imitates the style/motion of the reference with the user's product and prompt."
+git commit -m "fix: sanitize video filenames + tmpfiles.org fallback host" -m "catbox.moe was rejecting filenames with spaces/parens (412 Precondition Failed). Now upload_video sanitizes the name to [A-Za-z0-9._-] before upload, retries once, and falls back to tmpfiles.org if catbox keeps rejecting. Also fixes Stage 4 to run with no product images when only a reference video + prompt are provided."
 
 if errorlevel 1 (
     echo.

@@ -879,3 +879,50 @@ if videos_with_prompts:
                     st.session_state["stage4"] = video_outputs
                 except Exception as e:
                     s4_status.update(label=f"❌ {e}", state="error", expanded=True)
+
+
+# ════════════════════════════════════════════════════════════
+# 🎬 Generated Videos — view + download
+# ════════════════════════════════════════════════════════════
+if st.session_state.get("stage4"):
+    st.markdown("---")
+    st.header("🎬 הוידאו שיצרת")
+    st.caption("לחץ ▶ לצפייה, או ⬇️ להוריד למחשב.")
+
+    _outputs = st.session_state["stage4"]
+    # Each entry can be (id, path) tuple or dict — normalize
+    _normalized = []
+    for item in _outputs:
+        if isinstance(item, tuple):
+            _normalized.append({"id": item[0], "path": str(item[1])})
+        elif isinstance(item, dict):
+            _normalized.append(item)
+
+    if not _normalized:
+        st.info("אין וידאו זמינים להצגה.")
+    else:
+        _cols_per_row = 2
+        for i in range(0, len(_normalized), _cols_per_row):
+            _row = _normalized[i:i + _cols_per_row]
+            _cols = st.columns(len(_row))
+            for _col, _item in zip(_cols, _row):
+                with _col:
+                    _vid_id = _item.get("id", "?")
+                    _path = Path(_item.get("path", ""))
+                    if _path.exists():
+                        st.markdown(f"**וידאו #{_vid_id}** · {_path.name}")
+                        with open(_path, "rb") as _f:
+                            _bytes = _f.read()
+                        st.video(_bytes)
+                        st.download_button(
+                            label=f"⬇️ הורד וידאו #{_vid_id}",
+                            data=_bytes,
+                            file_name=_path.name,
+                            mime="video/mp4",
+                            key=f"dl_video_{_vid_id}_{_path.name}",
+                            use_container_width=True,
+                        )
+                        _size_mb = len(_bytes) / 1024 / 1024
+                        st.caption(f"{_size_mb:.1f} MB")
+                    else:
+                        st.warning(f"וידאו #{_vid_id} לא נמצא בדיסק.")

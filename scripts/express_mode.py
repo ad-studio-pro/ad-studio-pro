@@ -55,7 +55,7 @@ def render_express_ui(project_root: Path) -> None:
         "אופציונלי: העלה תמונות מוצר. לחץ ייצור — וזהו."
     )
 
-    col_n, col_d = st.columns([1, 1])
+    col_n, col_d, col_r = st.columns([1, 1, 1])
     with col_n:
         ex_n = st.number_input(
             "כמה וידאו ליצור?",
@@ -67,6 +67,22 @@ def render_express_ui(project_root: Path) -> None:
             [5, 8, 10, 15, 20, 25, 30], index=3,
             format_func=lambda x: f"{x}s" + (" (×2 chunks)" if x > 15 else ""),
             key="ex_dur",
+        )
+    with col_r:
+        ex_default_ratio = st.selectbox(
+            "יחס מסך ברירת מחדל",
+            ["adaptive", "9:16", "16:9", "1:1", "4:3", "3:4", "21:9"],
+            index=1,  # 9:16 default (TikTok/Reels)
+            format_func=lambda x: {
+                "adaptive": "🤖 אוטומטי (לפי הרפרנס)",
+                "9:16": "📱 9:16 — אנכי (TikTok/Reels)",
+                "16:9": "🖥 16:9 — אופקי (YouTube/CTV)",
+                "1:1": "⏹ 1:1 — מרובע (Instagram feed)",
+                "4:3": "📺 4:3 — קלאסי",
+                "3:4": "📐 3:4 — דיוקן קלאסי",
+                "21:9": "🎬 21:9 — קולנועי",
+            }[x],
+            key="ex_ratio",
         )
 
     st.markdown("**🖼 תמונות מוצר (אופציונלי — עד 9)**")
@@ -131,12 +147,28 @@ def render_express_ui(project_root: Path) -> None:
                 ),
                 label_visibility="collapsed",
             )
-            dur_i = st.number_input(
-                f"משך וידאו {i+1} (שניות)",
-                min_value=5, max_value=30, value=int(ex_default_dur), step=1,
-                key=f"ex_dur_{i}",
-            )
-            ex_prompts.append({"prompt": txt, "duration": dur_i})
+            dc, rc = st.columns([1, 1])
+            with dc:
+                dur_i = st.number_input(
+                    f"משך וידאו {i+1} (שניות)",
+                    min_value=5, max_value=30, value=int(ex_default_dur), step=1,
+                    key=f"ex_dur_{i}",
+                )
+            with rc:
+                ratio_options = ["(ברירת מחדל)", "adaptive", "9:16", "16:9", "1:1", "4:3", "3:4", "21:9"]
+                ratio_i = st.selectbox(
+                    f"יחס מסך וידאו {i+1}",
+                    ratio_options,
+                    index=0,
+                    key=f"ex_ratio_{i}",
+                    help="(ברירת מחדל) משתמש ביחס שבחרת למעלה",
+                )
+            actual_ratio = ex_default_ratio if ratio_i == "(ברירת מחדל)" else ratio_i
+            ex_prompts.append({
+                "prompt": txt,
+                "duration": dur_i,
+                "aspect_ratio": actual_ratio,
+            })
 
     valid = [p for p in ex_prompts if p["prompt"].strip()]
     save_col, info_col = st.columns([1, 2])
@@ -155,6 +187,7 @@ def render_express_ui(project_root: Path) -> None:
                     "id": idx, "format": 1, "family": "Express",
                     "format_name": "Express prompt",
                     "duration_seconds": int(p["duration"]),
+                    "aspect_ratio": p.get("aspect_ratio", "9:16"),
                     "prompt": p["prompt"].strip(),
                 })
             new_plan = {
