@@ -131,7 +131,16 @@ def poll_task(task_id, interval=15, max_wait=900, log=print):
         if status in ("succeeded", "completed", "success"):
             return data
         if status in ("failed", "error", "cancelled", "canceled"):
-            raise RuntimeError(f"Task failed: {data.get('error', data)}")
+            err = data.get("error", data)
+            err_str = str(err)
+            # Friendly hint for the audio safety filter
+            if "OutputAudioSensitive" in err_str:
+                raise RuntimeError(
+                    "Task failed: Seedance's audio safety filter blocked this output.\n"
+                    "💡 פתרון: ב-Express הסר את הסימון של '🔊 ייצור אודיו' ונסה שוב.\n"
+                    f"מקור: {err_str}"
+                )
+            raise RuntimeError(f"Task failed: {err}")
 
         time.sleep(interval)
         elapsed += interval

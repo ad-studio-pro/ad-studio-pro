@@ -85,6 +85,16 @@ def render_express_ui(project_root: Path) -> None:
             key="ex_ratio",
         )
 
+    ex_gen_audio = st.checkbox(
+        "🔊 ייצור אודיו (Seedance מוסיף קול/דיאלוג)",
+        value=True,
+        key="ex_gen_audio",
+        help=(
+            "כבה אם Seedance מסרב ליצור את הוידאו עם השגיאה "
+            "'OutputAudioSensitiveContentDetected'. הוידאו ייווצר ללא אודיו."
+        ),
+    )
+
     st.markdown("**🖼 תמונות מוצר (אופציונלי — עד 9)**")
     ex_uploaded = st.file_uploader(
         "אם הפרומט מזכיר Image 1 / Image 2 — חובה להעלות. אחרת אופציונלי.",
@@ -188,6 +198,7 @@ def render_express_ui(project_root: Path) -> None:
                     "format_name": "Express prompt",
                     "duration_seconds": int(p["duration"]),
                     "aspect_ratio": p.get("aspect_ratio", "9:16"),
+                    "generate_audio": bool(ex_gen_audio),
                     "prompt": p["prompt"].strip(),
                 })
             new_plan = {
