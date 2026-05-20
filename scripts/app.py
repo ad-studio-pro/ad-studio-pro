@@ -752,14 +752,17 @@ if videos_with_prompts:
 
             with st.status(f"🎬 מייצר {len(todo)} וידאו ב-BytePlus...", expanded=True) as s4_status:
                 try:
-                    img_paths = [Path(ip) for ip in st.session_state.get("image_paths", [str(image_path)])]
-                    s4_status.write(f"📤 מעלה {len(img_paths)} תמונה/ות ל-imgbb (פעם אחת)...")
+                    img_paths = [Path(ip) for ip in (st.session_state.get("image_paths") or []) if str(ip).strip()]
+                    if img_paths:
+                        s4_status.write(f"📤 מעלה {len(img_paths)} תמונה/ות ל-imgbb (פעם אחת)...")
+                    else:
+                        s4_status.write("ℹ אין תמונות מוצר — ממשיך עם prompt + reference video בלבד.")
                     base_image_urls = []
                     for idx, ip in enumerate(img_paths, 1):
                         url = upload_image(ip)
                         base_image_urls.append(url)
                         s4_status.write(f"  ✓ Image {idx}: {ip.name}")
-                    base_image_url = base_image_urls[0]  # backward-compat
+                    base_image_url = base_image_urls[0] if base_image_urls else None  # backward-compat
 
                     for vi, video in enumerate(todo, 1):
                         s4_status.write(f"\n━━━ Video {vi}/{len(todo)}: {video['id']} ({video.get('format_name')}) ━━━")
