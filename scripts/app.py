@@ -279,9 +279,65 @@ if st.button("🔍 הרץ Stage 1 — Research", type="primary", disabled=s1_dis
 if st.session_state.get("stage1"):
     s1 = st.session_state["stage1"]
     with st.expander("📦 Product Profile (auto-detected)", expanded=False):
-        st.json(s1["product"])
-    with st.expander("📄 Viral Content Brief (Claude.ai)", expanded=True):
-        st.markdown(s1["viral_brief"])
+        # Editable product JSON
+        prod_text = st.text_area(
+            "ערוך פרטי מוצר (JSON)",
+            value=json.dumps(s1["product"], indent=2, ensure_ascii=False),
+            height=260,
+            key="product_edit",
+        )
+        if st.button("💾 שמור פרטי מוצר", key="save_product"):
+            try:
+                s1["product"] = json.loads(prod_text)
+                st.session_state["stage1"] = s1
+                st.success("✓ נשמר")
+            except Exception as e:
+                st.error(f"JSON לא תקין: {e}")
+
+    with st.expander("📄 Viral Content Brief — ניתן לעריכה ידנית", expanded=True):
+        brief_edited = st.text_area(
+            "ערוך את ה-Brief — כל מה שתשנה כאן ישפיע על שלב 2",
+            value=s1["viral_brief"],
+            height=400,
+            key="brief_edit",
+            label_visibility="collapsed",
+        )
+        if st.button("💾 שמור Brief", key="save_brief"):
+            s1["viral_brief"] = brief_edited
+            st.session_state["stage1"] = s1
+            st.success("✓ Brief נשמר. שלב 2 ישתמש בגרסה החדשה.")
+
+# Skip-stage-1 expander: paste your own brief
+with st.expander("✏️ אופציה: דלג על Stage 1 — כתוב Brief משלך", expanded=False):
+    st.caption("אם יש לך Brief מוכן ואתה לא צריך מחקר — הדבק כאן והמשך לשלב 2.")
+    manual_brief = st.text_area(
+        "Brief ידני",
+        height=300,
+        placeholder="פסקה 1: למה הבעיה הזאת בוערת לקהל...\nפסקה 2: הזוויות הוויראליות...\nפסקה 3: יסודות יצירתיים...",
+        key="manual_brief_input",
+        label_visibility="collapsed",
+    )
+    manual_product_json = st.text_area(
+        "פרטי מוצר ידניים (JSON) — אופציונלי, אם לא מילאת קלוד לא יידע מה זה",
+        value='{\n  "category": "",\n  "subtype": "",\n  "skus_visible": [],\n  "brand_name_visible": "",\n  "packaging_colors": [],\n  "packaging_style": "",\n  "region_cue": "global",\n  "niche_keyword": "",\n  "audience_default": "American"\n}',
+        height=240,
+        key="manual_product_input",
+    )
+    if st.button("✅ השתמש בקלט הידני (דלג על Stage 1)", key="use_manual_brief"):
+        if not manual_brief.strip():
+            st.error("צריך לכתוב Brief")
+        else:
+            try:
+                manual_product = json.loads(manual_product_json) if manual_product_json.strip() else {}
+                st.session_state["stage1"] = {
+                    "product": manual_product,
+                    "viral_brief": manual_brief.strip(),
+                    "research": {"manual": True},
+                }
+                st.success("✓ Stage 1 ידני נשמר. תוכל להמשיך לשלב 2.")
+                st.rerun()
+            except Exception as e:
+                st.error(f"JSON של פרטי מוצר לא תקין: {e}")
 
 
 # ════════════════════════════════════════════════════════════
@@ -432,6 +488,49 @@ if st.session_state.get("stage2"):
             } for v in videos]
             st.dataframe(preview, use_container_width=True)
 
+    # Editable plan JSON
+    with st.expander("✏️ ערוך תכנית ידנית (JSON) — שינויים ישפיעו על שלב 3", expanded=False):
+        plan_text = st.text_area(
+            "Plan JSON",
+            value=json.dumps(plan, indent=2, ensure_ascii=False),
+            height=500,
+            key="plan_edit",
+            label_visibility="collapsed",
+        )
+        if st.button("💾 שמור תכנית", key="save_plan"):
+            try:
+                new_plan = json.loads(plan_text)
+                st.session_state["stage2"] = new_plan
+                st.success(f"✓ תכנית נשמרה — {len(new_plan.get('videos', []))} וידאו")
+                st.rerun()
+            except Exception as e:
+                st.error(f"JSON לא תקין: {e}")
+
+# Skip-stage-2 expander
+with st.expander("✏️ אופציה: דלג על Stage 2 — כתוב תכנית משלך", expanded=False):
+    st.caption("אם יש לך תכנית מוכנה (JSON עם השדה videos) — הדבק כאן.")
+    manual_plan = st.text_area(
+        "תכנית ידנית",
+        height=320,
+        placeholder='{\n  "campaign_name": "...",\n  "videos": [\n    {"id": 1, "format": 1, "family": "UGC", "format_name": "...", "duration_seconds": 15, "setting": "...", "persona": "...", "hook_line": "..."}\n  ]\n}',
+        key="manual_plan_input",
+        label_visibility="collapsed",
+    )
+    if st.button("✅ השתמש בתכנית הידנית (דלג על Stage 2)", key="use_manual_plan"):
+        if not manual_plan.strip():
+            st.error("צריך לכתוב תכנית")
+        else:
+            try:
+                new_plan = json.loads(manual_plan)
+                if "videos" not in new_plan:
+                    st.error("חייב להיות שדה 'videos'")
+                else:
+                    st.session_state["stage2"] = new_plan
+                    st.success(f"✓ תכנית ידנית נשמרה — {len(new_plan.get('videos', []))} וידאו")
+                    st.rerun()
+            except Exception as e:
+                st.error(f"JSON לא תקין: {e}")
+
 
 # ════════════════════════════════════════════════════════════
 # STAGE 3 — Prompts
@@ -484,12 +583,51 @@ if st.session_state.get("stage3"):
             mp = plan["_files"].get("prompts_md", "")
             st.markdown(f"📝 [Prompts MD]({mp})")
 
-    for v in plan.get("videos", []):
+    st.caption("💡 כל פרומט הוא טקסט לעריכה. שינויים נשמרים אוטומטית ויופעלו כשתלחץ על 'ייצור הוידאו' בשלב 4.")
+
+    for idx, v in enumerate(plan.get("videos", [])):
         if not v.get("prompt"):
             continue
-        with st.expander(f"{v.get('id')} — {v.get('format_name')} ({v.get('duration_seconds')}s)"):
-            st.text_area("prompt", v["prompt"], height=240,
-                          key=f"prompt_view_{v.get('id')}", label_visibility="collapsed")
+        vid = v.get("id")
+        with st.expander(f"{vid} — {v.get('format_name')} ({v.get('duration_seconds')}s)"):
+            edited = st.text_area(
+                "prompt",
+                v["prompt"],
+                height=240,
+                key=f"prompt_edit_{vid}",
+                label_visibility="collapsed",
+            )
+            # Save edits back to the plan structure
+            if edited != v["prompt"]:
+                plan["videos"][idx]["prompt"] = edited
+                st.session_state["stage3"] = plan
+                st.caption(f"✓ נשמר ב-זיכרון (וידאו {vid})")
+
+# Skip-stage-3 expander
+with st.expander("✏️ אופציה: דלג על Stage 3 — הדבק פרומטים משלך", expanded=False):
+    st.caption("אם יש לך פרומטים מוכנים בכל וידאו — תוכל לערוך כל אחד בנפרד למעלה אחרי שתריץ Stage 3, או להעלות JSON מלא עם prompts כבר בפנים.")
+    manual_stage3 = st.text_area(
+        "Plan JSON עם prompts מוכנים",
+        height=320,
+        placeholder='{"campaign_name": "...", "videos": [{"id": 1, "format_name": "UGC", "duration_seconds": 15, "prompt": "..."}, ...]}',
+        key="manual_stage3_input",
+        label_visibility="collapsed",
+    )
+    if st.button("✅ השתמש בפרומטים הידניים (דלג על Stage 3)", key="use_manual_stage3"):
+        if not manual_stage3.strip():
+            st.error("צריך לכתוב פרומטים")
+        else:
+            try:
+                new_plan = json.loads(manual_stage3)
+                videos_with_prompts = [v for v in new_plan.get("videos", []) if v.get("prompt")]
+                if not videos_with_prompts:
+                    st.error("חייב להיות לפחות וידאו אחד עם 'prompt'")
+                else:
+                    st.session_state["stage3"] = new_plan
+                    st.success(f"✓ נשמרו {len(videos_with_prompts)} פרומטים. תוכל להמשיך לשלב 4.")
+                    st.rerun()
+            except Exception as e:
+                st.error(f"JSON לא תקין: {e}")
 
 
 # ════════════════════════════════════════════════════════════
