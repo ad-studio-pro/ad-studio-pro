@@ -141,6 +141,10 @@ with st.sidebar:
 # Show logged-in user + logout in the sidebar.
 render_logout_button()
 
+# Express mode (paste prompts → videos). Renders mode selector + Express UI.
+from express_mode import maybe_render_express
+IS_EXPRESS = maybe_render_express(PROJECT_ROOT)
+
 # ════════════════════════════════════════════════════════════
 # Stage 0 — Inputs
 # ════════════════════════════════════════════════════════════
@@ -784,7 +788,8 @@ if videos_with_prompts:
 
                                 if ci == 1:
                                     chunk_image_urls = list(base_image_urls)
-                                    chunk_video_refs = []
+                                    from ref_video_helper import get_ref_video_urls
+                                    chunk_video_refs = get_ref_video_urls(log=s4_status.write)
                                     chunk_prompt = video["prompt"]
                                 else:
                                     s4_status.write("  🔗 מחלץ פריים אחרון...")
@@ -871,19 +876,3 @@ if videos_with_prompts:
                     st.session_state["stage4"] = video_outputs
                 except Exception as e:
                     s4_status.update(label=f"❌ {e}", state="error", expanded=True)
-
-# Show ALL rendered videos (accumulated across runs)
-if st.session_state.get("video_results"):
-    results = st.session_state["video_results"]
-    st.subheader(f"🎥 הוידאו שנוצרו ({len(results)})")
-    for vid_id, vid_path in results.items():
-        with st.expander(f"🎬 {vid_id} — {Path(vid_path).name}", expanded=False):
-            st.video(str(vid_path))
-            st.caption(f"📁 {vid_path}")
-
-
-# ════════════════════════════════════════════════════════════
-# Footer
-# ════════════════════════════════════════════════════════════
-st.markdown("---")
-st.caption(f"📁 Outputs in: `{OUTPUTS_DIR}`  |  Skill: `seedance-campaign-factory`")

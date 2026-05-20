@@ -30,18 +30,21 @@ git add scripts/stage1_research.py
 git add scripts/nano_banana.py
 git add scripts/app.py
 git add scripts/auth_gate.py
+git add scripts/express_mode.py
+git add scripts/ref_video_helper.py
 git add requirements.txt
 git add GOOGLE_OAUTH_SETUP.md
 git add .python-version
 git add runtime.txt
 git add 3_PUSH_FIX.bat
+git add RECOVER_APP.bat
 
 echo.
 echo === Files staged: ===
 git diff --cached --name-only
 echo.
 
-git commit -m "feat: custom stateless OAuth (HMAC-signed state)" -m "Replaced Streamlit's st.login() with our own Google OAuth flow that uses HMAC-signed state instead of session storage. This sidesteps the MismatchingStateError bug in Streamlit Cloud's multi-replica setup. Redirect URI changes from /oauth2callback to / (the app root). Also drops Authlib dependency."
+git commit -m "feat: reference video upload (Seedance video imitation)" -m "Adds reference video uploader in Express mode — user can upload up to 3 MP4s (each <=15s). At video generation time these are uploaded to catbox.moe and passed to BytePlus Seedance 2.0 as video_urls, so Seedance imitates the style/motion of the reference with the user's product and prompt."
 
 if errorlevel 1 (
     echo.
