@@ -929,3 +929,81 @@ if st.session_state.get("stage4"):
                         st.caption(f"{_size_mb:.1f} MB")
                     else:
                         st.warning(f"וידאו #{_vid_id} לא נמצא בדיסק.")
+
+
+# ════════════════════════════════════════════════════════════
+# 📂 כל הוידאו על השרת — file browser + ZIP bulk download
+# ════════════════════════════════════════════════════════════
+# Even after a session reset, the user can grab any MP4 still sitting on the
+# Streamlit Cloud VM's disk. Lists all *.mp4 in outputs/videos/, newest first.
+st.markdown("---")
+with st.expander("📂 כל הוידאו ששמורים על השרת — גישה ישירה לקבצים", expanded=False):
+    st.caption(
+        "⚠ הקבצים נשמרים על Streamlit Cloud באופן זמני בלבד. "
+        "כשה-VM מאתחל (חידוש בנייה, חוסר פעילות ממושך) הם נמחקים. "
+        "**הורד אותם למחשב שלך כדי לשמור לטווח ארוך.**"
+    )
+
+    _videos_dir = OUTPUTS_DIR / "videos"
+    if not _videos_dir.exists():
+        st.info("עוד לא נוצרו וידאו. אחרי שתייצר ב-Stage 4, הם יופיעו כאן.")
+    else:
+        _all_mp4s = sorted(
+            _videos_dir.glob("*.mp4"),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )
+        if not _all_mp4s:
+            st.info("התיקייה ריקה — עדיין לא נוצרו וידאו.")
+        else:
+            from datetime import datetime as _dt
+            _total_size = sum(p.stat().st_size for p in _all_mp4s)
+            st.success(
+                f"✓ {len(_all_mp4s)} קבצים על השרת · "
+                f"סה\"כ {_total_size / 1024 / 1024:.1f} MB"
+            )
+
+            # ZIP bundle button — pack all videos into a single download
+            import io as _io
+            import zipfile as _zipfile
+
+            _zip_buf = _io.BytesIO()
+            with _zipfile.ZipFile(_zip_buf, "w", _zipfile.ZIP_STORED) as _zf:
+                # ZIP_STORED (no compression) — mp4 is already compressed, this is faster
+                for _p in _all_mp4s:
+                    _zf.write(_p, arcname=_p.name)
+            _zip_bytes = _zip_buf.getvalue()
+            st.download_button(
+                label=f"⬇️ הורד את כל ה-{len(_all_mp4s)} הוידאו כ-ZIP ({len(_zip_bytes) / 1024 / 1024:.1f} MB)",
+                data=_zip_bytes,
+                file_name=f"ad-studio-pro_videos_{_dt.now().strftime('%Y%m%d_%H%M%S')}.zip",
+                mime="application/zip",
+                key="dl_all_zip",
+                type="primary",
+                use_container_width=True,
+            )
+
+            st.markdown("---")
+            st.markdown(f"**📋 רשימת קבצים** (חדשים → ישנים):")
+
+            # Per-file row: name, mtime, size, download button
+            for _p in _all_mp4s:
+                _mtime = _dt.fromtimestamp(_p.stat().st_mtime)
+                _size_mb = _p.stat().st_size / 1024 / 1024
+                _cols = st.columns([3, 2, 1, 2])
+                with _cols[0]:
+                    st.text(_p.name)
+                with _cols[1]:
+                    st.caption(_mtime.strftime("%Y-%m-%d %H:%M:%S"))
+                with _cols[2]:
+                    st.caption(f"{_size_mb:.1f} MB")
+                with _cols[3]:
+                    with open(_p, "rb") as _f:
+                        st.download_button(
+                            label="⬇️ הורד",
+                            data=_f.read(),
+                            file_name=_p.name,
+                            mime="video/mp4",
+                            key=f"dl_disk_{_p.name}",
+                            use_container_width=True,
+                        )
