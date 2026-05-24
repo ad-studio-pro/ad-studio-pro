@@ -2,9 +2,10 @@
 Reference video helper — uploads user-uploaded reference videos to catbox
 and caches the URLs. Stage 4 uses these as `video_urls` in submit_task.
 
-Also handles auto-downscaling — BytePlus Seedance 2.0 rejects reference
-videos whose pixel count exceeds ~2.08M (roughly 1080p). We auto-scale
-larger videos down to fit before uploading.
+Pipeline order (each step is optional / falls back to passthrough on failure):
+  1. Auto-blur faces  — passes Seedance InputVideoSensitiveContentDetected filter
+  2. Auto-downscale   — BytePlus rejects videos > ~2.08M pixels (~1080p)
+  3. Upload to catbox — with tmpfiles.org fallback
 """
 
 import json
@@ -103,31 +104,27 @@ def _downscale_if_needed(video_path: Path, log=print) -> Path:
         return video_path
 
 
-def get_ref_video_urls(log=print):
-    """Upload (or reuse cached) reference video URLs. Returns list[str]."""
-    paths = st.session_state.get("ref_video_paths", []) or []
-    if not paths:
-        return []
+def _blur_faces_in_video(video_path: Path, log=print) -> Path:
+    """Detect faces in each frame and apply heavy Gaussian blur to those regions.
+    This passes Seedance's InputVideoSensitiveContentDetected filter while
+    preserving everything else about the video (motion, composition, style).
 
-    if _upload_video is None:
-        log("⚠ upload_video module not available — skipping reference videos")
-        return []
+    Pipeline:
+      1. OpenCV reads frames one at a time
+      2. Haar cascade detects faces
+      3. Each detected region gets a heavy Gaussian blur (with 30% padding on top
+         for forehead/hair)
+      4. Frames written to a temp mp4v video
+      5. ffmpeg re-encodes to H.264 (Seedance requires H.264, not mp4v)
 
-    # Cache uploaded URLs per file path so we don't re-upload the same file
-    cache = st.session_state.setdefault("_ref_video_url_cache", {})
-    urls = []
-    for p in paths[:3]:  # BytePlus max 3 reference videos
-        if p in cache:
-            urls.append(cache[p])
-            continue
-        try:
-            log(f"📤 מכין וידאו רפרנס: {Path(p).name}")
-            # Downscale if pixel count > BytePlus limit
-            scaled_path = _downscale_if_needed(Path(p), log=log)
-            log(f"📤 מעלה לקטבוקס: {scaled_path.name}")
-            url = _upload_video(scaled_path)
-            cache[p] = url
-            urls.append(url)
-        except Exception as e:
-            log(f"⚠ שגיאה בהעלאת {Path(p).name}: {e}")
-    return urls
+    Returns:
+        Path to blurred H.264 mp4 if faces were detected and processing succeeded.
+        Otherwise returns the original path unchanged.
+    """
+    try:
+        import cv2  # opencv-python-headless
+    except ImportError:
+        log("  ⚠ opencv-python-headless לא מותקן — מדלג על טשטוש פנים")
+        return video_path
+
+    cascade_path = cv2.data.haarcascades + "h

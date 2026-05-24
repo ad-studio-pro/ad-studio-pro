@@ -204,6 +204,17 @@ def render_express_ui(project_root: Path) -> None:
         accept_multiple_files=True,
         key="ex_video_refs",
     )
+    st.checkbox(
+        "🫥 טשטש פנים אוטומטית בוידאו רפרנס (עוקף את המסנן של Seedance)",
+        value=True,
+        key="ex_blur_faces",
+        help=(
+            "Seedance חוסמת וידאו רפרנס שיש בו פנים אמיתיים. "
+            "האפשרות הזאת מטשטשת פנים אוטומטית לפני העלאה — Seedance עדיין לומדת "
+            "את הסגנון, התנועה והקומפוזיציה (זה כל מה שהיא משתמשת מהרפרנס), "
+            "ופנים אמיתיים נחסכים מהסינון. כבה אם הוידאו כבר נקי מאנשים."
+        ),
+    )
     if ex_video_refs:
         ref_dir = project_root / "assets" / "ref_videos"
         ref_dir.mkdir(parents=True, exist_ok=True)
@@ -259,19 +270,4 @@ def render_express_ui(project_root: Path) -> None:
 
     # AUTO-SAVE — every rerun, push the latest prompts into stage3.
     # The user doesn't have to click "Save" — what they see in the boxes is
-    # what Stage 4 will generate. We always REPLACE any older data.
-    if valid:
-        _save_express_plan(valid, ex_gen_audio)
-        st.success(
-            f"✅ {len(valid)} פרומטים פעילים מתוך {int(ex_n)}. "
-            f"גלול ל-'5️⃣ שלב 4' לייצור."
-        )
-    else:
-        # No valid prompts — wipe Express plan so Stage 4 stays disabled.
-        st.session_state.pop("stage3", None)
-        st.session_state.pop("stage2", None)
-        st.info(f"💡 כתוב פרומט באחד מ-{int(ex_n)} השדות למעלה.")
-
-    st.markdown("---")
-    st.caption("⬇ גלול מטה ל-'5️⃣ שלב 4' לייצור הוידאו.")
-    st.markdown("---")
+    # what Stag
