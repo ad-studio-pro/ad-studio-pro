@@ -962,31 +962,40 @@ with st.expander("📂 כל הוידאו ששמורים על השרת — גיש
                 f"✓ {len(_all_mp4s)} קבצים על השרת · "
                 f"סה\"כ {_total_size / 1024 / 1024:.1f} MB"
             )
-
-            # ZIP bundle button — pack all videos into a single download
-            import io as _io
-            import zipfile as _zipfile
-
-            _zip_buf = _io.BytesIO()
-            with _zipfile.ZipFile(_zip_buf, "w", _zipfile.ZIP_STORED) as _zf:
-                # ZIP_STORED (no compression) — mp4 is already compressed, this is faster
-                for _p in _all_mp4s:
-                    _zf.write(_p, arcname=_p.name)
-            _zip_bytes = _zip_buf.getvalue()
-            st.download_button(
-                label=f"⬇️ הורד את כל ה-{len(_all_mp4s)} הוידאו כ-ZIP ({len(_zip_bytes) / 1024 / 1024:.1f} MB)",
-                data=_zip_bytes,
-                file_name=f"ad-studio-pro_videos_{_dt.now().strftime('%Y%m%d_%H%M%S')}.zip",
-                mime="application/zip",
-                key="dl_all_zip",
-                type="primary",
-                use_container_width=True,
+            st.info(
+                "💡 **שימו לב:** ההורדה הישירה של Streamlit נתקעת לפעמים לקבצים גדולים. "
+                "במקום זה, לחץ '📤 צור לינק קבוע' ליד כל וידאו — הוא יועלה לקטבוקס "
+                "(קישור ציבורי, יציב, יש לו CDN משלו), ותקבל לינק שתוכל לפתוח בכרטיסייה חדשה "
+                "ולהוריד ישירות מהדפדפן בלי בעיות."
             )
 
-            st.markdown("---")
-            st.markdown(f"**📋 רשימת קבצים** (חדשים → ישנים):")
+            # Cache uploaded URLs per file in session_state
+            _url_cache = st.session_state.setdefault("_video_share_urls", {})
 
-            # Per-file row: name, mtime, size, download button
+            # ── Bulk upload all → returns a list of shareable links ──
+            if st.button(
+                f"\U0001F4E4 צור לינקי הורדה לכל ה-{len(_all_mp4s)} הוידאו",
+                type="primary",
+                use_container_width=True,
+                key="upload_all_btn",
+                help="מעלה כל וידאו לקטבוקס (קישור קבוע). ייקח כמה שניות לוידאו.",
+            ):
+                _prog = st.progress(0.0, text="מעלה...")
+                for _i, _p in enumerate(_all_mp4s):
+                    if str(_p) not in _url_cache:
+                        try:
+                            _url_cache[str(_p)] = upload_video(_p)
+                        except Exception as _e:
+                            st.warning(f"\u274C {_p.name}: {_e}")
+                    _prog.progress((_i + 1) / len(_all_mp4s), text=f"מעלה {_i+1}/{len(_all_mp4s)}: {_p.name}")
+                _prog.empty()
+                st.success(f"\u2713 הועלו {len(_url_cache)} וידאו. הקישורים מופיעים למטה.")
+                st.rerun()
+
+            st.markdown("---")
+            st.markdown(f"**\U0001F4CB רשימת קבצים** (חדשים \u2192 ישנים):")
+
+            # Per-file row: name, mtime, size, action button
             for _p in _all_mp4s:
                 _mtime = _dt.fromtimestamp(_p.stat().st_mtime)
                 _size_mb = _p.stat().st_size / 1024 / 1024
@@ -998,12 +1007,24 @@ with st.expander("📂 כל הוידאו ששמורים על השרת — גיש
                 with _cols[2]:
                     st.caption(f"{_size_mb:.1f} MB")
                 with _cols[3]:
-                    with open(_p, "rb") as _f:
-                        st.download_button(
-                            label="⬇️ הורד",
-                            data=_f.read(),
-                            file_name=_p.name,
-                            mime="video/mp4",
-                            key=f"dl_disk_{_p.name}",
+                    _key = str(_p)
+                    if _key in _url_cache:
+                        st.link_button(
+                            "\u2B07\ufe0f הורד מקטבוקס",
+                            _url_cache[_key],
                             use_container_width=True,
+                            help="לחץ ימני \u2192 'Save link as...' או פתח בכרטיסייה חדשה",
                         )
+                    else:
+                        if st.button(
+                            "\U0001F4E4 צור לינק קבוע",
+                            key=f"upload_one_{_p.name}",
+                            use_container_width=True,
+                            help="מעלה לקטבוקס, יוצר קישור הורדה ישיר",
+                        ):
+                            with st.spinner(f"מעלה {_p.name}..."):
+                                try:
+                                    _url_cache[_key] = upload_video(_p)
+                                    st.rerun()
+                                except Exception as _e:
+                                    st.error(f"שגיאה בהעלאה: {_e}")
