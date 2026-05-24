@@ -90,4 +90,6 @@ echo.
 echo Or your app URL directly:
 echo   https://ad-studio-pro.streamlit.app/
 echo.
-echo Wait ~30-60 seconds, then refresh the app p
+echo Wait ~30-60 seconds, then refresh the app page.
+echo.
+pause
