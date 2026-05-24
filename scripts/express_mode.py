@@ -1,12 +1,16 @@
 """
 Express Mode — minimal UI for: paste prompts → generate videos.
 
+KEY FIX (2026-05-24):
+  Stage 4 reads from st.session_state["stage3"], which can be polluted by
+  earlier Full-pipeline runs (e.g. 16 plan rows). When the user picks Express,
+  we now AUTO-WIPE any non-Express stage3 so Stage 4 only sees fresh Express
+  prompts. We also auto-save prompts on every rerun so the user doesn't have
+  to click "Save" before scrolling to Stage 4.
+
 Used by app.py via:
-    from express_mode import render_express_ui, is_express_selected
-    is_express = render_mode_selector()
-    if is_express:
-        render_express_ui(PROJECT_ROOT)
-    # Stage 4 below still renders, reads st.session_state["stage3"]
+    from express_mode import maybe_render_express
+    IS_EXPRESS = maybe_render_express(PROJECT_ROOT)
 
 Express mode populates st.session_state["stage3"] (the same key Stage 4 reads
 from), so the existing Stage 4 logic generates videos for the manually-pasted
@@ -20,6 +24,23 @@ try:
     from upload_video import upload_video as _upload_video_to_catbox
 except Exception:
     _upload_video_to_catbox = None
+
+
+EXPRESS_MARKER = "Express campaign"
+
+
+def _wipe_non_express_stage_state():
+    """If stage2/stage3 hold non-Express data (e.g. a 16-row Full plan),
+    drop them so Stage 4 doesn't see stale prompts. Idempotent.
+    """
+    for k in ("stage2", "stage3"):
+        v = st.session_state.get(k)
+        if isinstance(v, dict) and v.get("campaign_name") != EXPRESS_MARKER:
+            st.session_state.pop(k, None)
+    # Also drop per-video checkbox state — fresh start.
+    for key in list(st.session_state.keys()):
+        if isinstance(key, str) and key.startswith("sel_"):
+            st.session_state.pop(key, None)
 
 
 def render_mode_selector() -> bool:
@@ -37,29 +58,84 @@ def render_mode_selector() -> bool:
 
 def maybe_render_express(project_root) -> bool:
     """Single entry point — renders mode selector and Express UI if chosen.
-    Returns True if Express mode is active (caller can use this to skip
-    the Full pipeline UI). Caller only needs:
-        is_express = express_mode.maybe_render_express(PROJECT_ROOT)
+    Returns True if Express mode is active.
     """
     is_express = render_mode_selector()
+
+    # Detect mode transition — when switching INTO Express, wipe stale state.
+    prev_mode = st.session_state.get("_last_mode")
+    cur_mode = "express" if is_express else "full"
+    if prev_mode != cur_mode:
+        if is_express:
+            _wipe_non_express_stage_state()
+        st.session_state["_last_mode"] = cur_mode
+
     if is_express:
+        # Always sanitize before rendering — even on repeat renders, if a
+        # full-pipeline action snuck in a non-Express plan we drop it.
+        _wipe_non_express_stage_state()
         render_express_ui(project_root)
     return is_express
 
 
+def _save_express_plan(valid_prompts, gen_audio):
+    """Build the campaign dict and write it to session_state. Called both by
+    the explicit Save button AND automatically on every rerun (auto-save).
+    """
+    videos = []
+    for idx, p in enumerate(valid_prompts, 1):
+        videos.append({
+            "id": idx,
+            "format": 1,
+            "family": "Express",
+            "format_name": "Express prompt",
+            "duration_seconds": int(p["duration"]),
+            "aspect_ratio": p.get("aspect_ratio", "9:16"),
+            "generate_audio": bool(gen_audio),
+            "prompt": p["prompt"].strip(),
+        })
+    new_plan = {
+        "campaign_name": EXPRESS_MARKER,
+        "total_videos": len(videos),
+        "videos": videos,
+    }
+    st.session_state["stage3"] = new_plan
+    st.session_state["stage2"] = new_plan  # gates Stage 4
+    return new_plan
+
+
 def render_express_ui(project_root: Path) -> None:
-    """Render the Express UI. Sets st.session_state['stage3'] when user saves."""
+    """Render the Express UI. Populates st.session_state['stage3'] live."""
     st.header("⚡ Express — פרומטים → וידאו")
     st.caption(
         "כתוב את הפרומטים ישירות (משלך / מ-Claude / מ-ChatGPT). "
         "אופציונלי: העלה תמונות מוצר. לחץ ייצור — וזהו."
     )
 
+    # Big visible "Reset" button — clears all Express state so the user can
+    # start over without confusion.
+    reset_col, info_col = st.columns([1, 3])
+    with reset_col:
+        if st.button("🧹 איפוס מלא", key="ex_reset_btn",
+                      help="מוחק את כל הפרומטים שכתבת ומאפס את שלב 4"):
+            for k in list(st.session_state.keys()):
+                if isinstance(k, str) and (
+                    k.startswith("ex_prompt_")
+                    or k.startswith("ex_dur_")
+                    or k.startswith("ex_ratio_")
+                    or k.startswith("sel_")
+                    or k in ("stage2", "stage3", "stage4", "video_results")
+                ):
+                    st.session_state.pop(k, None)
+            st.rerun()
+    with info_col:
+        st.caption("💡 'איפוס מלא' מנקה הכל ומתחיל מאפס. שימושי אם נראה לך שיש פרומטים ישנים תקועים.")
+
     col_n, col_d, col_r = st.columns([1, 1, 1])
     with col_n:
         ex_n = st.number_input(
             "כמה וידאו ליצור?",
-            min_value=1, max_value=50, value=3, step=1, key="ex_n",
+            min_value=1, max_value=50, value=1, step=1, key="ex_n",
         )
     with col_d:
         ex_default_dur = st.selectbox(
@@ -72,7 +148,7 @@ def render_express_ui(project_root: Path) -> None:
         ex_default_ratio = st.selectbox(
             "יחס מסך ברירת מחדל",
             ["adaptive", "9:16", "16:9", "1:1", "4:3", "3:4", "21:9"],
-            index=1,  # 9:16 default (TikTok/Reels)
+            index=1,
             format_func=lambda x: {
                 "adaptive": "🤖 אוטומטי (לפי הרפרנס)",
                 "9:16": "📱 9:16 — אנכי (TikTok/Reels)",
@@ -117,7 +193,6 @@ def render_express_ui(project_root: Path) -> None:
             with thumb_cols[idx % 5]:
                 st.image(ip, width=120, caption=f"Image {idx+1}")
 
-    # Reference videos — Seedance imitates style/motion from these
     st.markdown("**🎥 וידאו רפרנס (אופציונלי — עד 3, כל אחד ≤15 שניות)**")
     st.caption(
         "אם יש לך וידאו דוגמה (קליפ של מתחרה / יוצר אחר / וידאו ישן שלכם) — "
@@ -181,43 +256,21 @@ def render_express_ui(project_root: Path) -> None:
             })
 
     valid = [p for p in ex_prompts if p["prompt"].strip()]
-    save_col, info_col = st.columns([1, 2])
-    with save_col:
-        clicked = st.button(
-            f"💾 שמור {len(valid)} פרומטים והמשך לייצור",
-            type="primary",
-            disabled=len(valid) == 0,
-            use_container_width=True,
-            key="ex_save_btn",
+
+    # AUTO-SAVE — every rerun, push the latest prompts into stage3.
+    # The user doesn't have to click "Save" — what they see in the boxes is
+    # what Stage 4 will generate. We always REPLACE any older data.
+    if valid:
+        _save_express_plan(valid, ex_gen_audio)
+        st.success(
+            f"✅ {len(valid)} פרומטים פעילים מתוך {int(ex_n)}. "
+            f"גלול ל-'5️⃣ שלב 4' לייצור."
         )
-        if clicked:
-            videos = []
-            for idx, p in enumerate(valid, 1):
-                videos.append({
-                    "id": idx, "format": 1, "family": "Express",
-                    "format_name": "Express prompt",
-                    "duration_seconds": int(p["duration"]),
-                    "aspect_ratio": p.get("aspect_ratio", "9:16"),
-                    "generate_audio": bool(ex_gen_audio),
-                    "prompt": p["prompt"].strip(),
-                })
-            new_plan = {
-                "campaign_name": "Express campaign",
-                "total_videos": len(videos),
-                "videos": videos,
-            }
-            st.session_state["stage3"] = new_plan
-            st.session_state["stage2"] = new_plan  # gates Stage 4
-            st.success(
-                f"✓ {len(valid)} פרומטים מוכנים. גלול ל-'5️⃣ שלב 4' לייצור."
-            )
-    with info_col:
-        if len(valid) == 0:
-            st.info("💡 כתוב לפחות פרומט אחד.")
-        else:
-            st.info(
-                f"💡 מוכנים {len(valid)} פרומטים — לחץ 'שמור' כדי לאפשר את שלב 4."
-            )
+    else:
+        # No valid prompts — wipe Express plan so Stage 4 stays disabled.
+        st.session_state.pop("stage3", None)
+        st.session_state.pop("stage2", None)
+        st.info(f"💡 כתוב פרומט באחד מ-{int(ex_n)} השדות למעלה.")
 
     st.markdown("---")
     st.caption("⬇ גלול מטה ל-'5️⃣ שלב 4' לייצור הוידאו.")

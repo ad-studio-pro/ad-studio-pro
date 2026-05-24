@@ -47,7 +47,7 @@ echo === Files staged: ===
 git diff --cached --name-only
 echo.
 
-git commit -m "fix: 120s submit timeout + video player + aspect ratio + ref video" -m "Adds inline video player and download buttons for generated videos. Adds aspect ratio selector in Express mode (per-video + global default). Bumps BytePlus submit_task timeout from 30s to 120s because submitting with reference videos triggers a slow URL verification on their side. Falls back to tmpfiles.org when catbox.moe rejects uploads."
+git commit -m "fix: Express creating N videos from 1 prompt — hide Stage 0-3 + auto-clear stale stage3" -m "Root cause: when user switched from Full pipeline to Express, st.session_state['stage3'] still held 16 stale Manual prompts from the earlier run, and Stage 0-3 kept rendering below Express, letting the old data flow into Stage 4. Fixes: (1) Stage 0-3 now wrapped in 'if not IS_EXPRESS:' so they vanish in Express mode. (2) maybe_render_express() detects mode transitions and wipes any non-Express stage2/stage3. (3) Express auto-saves on every rerun. (4) Reset button at top of Express clears everything."
 
 if errorlevel 1 (
     echo.
