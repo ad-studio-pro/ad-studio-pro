@@ -274,15 +274,15 @@ def render_express_ui(project_root: Path) -> None:
     if valid:
         _save_express_plan(valid, ex_gen_audio)
         st.success(
-            f"✅ {len(valid)} פרומטים פעילים מתוך {int(ex_n)}. "
-            f"גלול ל-'5️⃣ שלב 4' לייצור."
+            f"\u2705 {len(valid)} פרומטים פעילים מתוך {int(ex_n)}. "
+            f"גלול ל-'5\ufe0f\u20e3 שלב 4' לייצור."
         )
     else:
         # No valid prompts — wipe Express plan so Stage 4 stays disabled.
         st.session_state.pop("stage3", None)
         st.session_state.pop("stage2", None)
-        st.info(f"💡 כתוב פרומט באחד מ-{int(ex_n)} השדות למעלה.")
+        st.info(f"\U0001F4A1 כתוב פרומט באחד מ-{int(ex_n)} השדות למעלה.")
 
     st.markdown("---")
-    st.caption("⬇ גלול מטה ל-'5️⃣ שלב 4' לייצור הוידאו.")
+    st.caption("\u2B07 גלול מטה ל-'5\ufe0f\u20e3 שלב 4' לייצור הוידאו.")
     st.markdown("---")

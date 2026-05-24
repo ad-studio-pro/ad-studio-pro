@@ -45,3 +45,8 @@ assets/characters/*.png
 
 # Keep gitkeep markers
 !**/.gitkeep
+
+# Real secrets files (NEVER push)
+*_real.toml
+STREAMLIT_SECRETS_*.toml
+!STREAMLIT_SECRETS_template.toml
