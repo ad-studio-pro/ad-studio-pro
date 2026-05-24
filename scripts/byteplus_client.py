@@ -91,7 +91,26 @@ def submit_task(prompt, image_urls=None, video_urls=None, audio_urls=None,
     response = requests.post(url, json=payload, headers=_headers(), timeout=120)
 
     if response.status_code >= 400:
-        raise RuntimeError(f"BytePlus submit failed [{response.status_code}]: {response.text}")
+        body = response.text or ""
+        # Friendly hint: real-person filter on reference video
+        if "InputVideoSensitiveContentDetected" in body or "PrivacyInformation" in body:
+            raise RuntimeError(
+                "❌ Seedance חסם את הוידאו רפרנס כי הוא מזהה בו פנים של אדם אמיתי "
+                "(מנגנון anti-deepfake של ByteDance, אי אפשר לעקוף).\n\n"
+                "💡 פתרונות:\n"
+                "  1. השתמש בוידאו רפרנס בלי פנים אמיתיים (מוצר בלבד / אנימציה / מופשט)\n"
+                "  2. הסר את הוידאו רפרנס לגמרי — Seedance תיצור מהפרומט+תמונה\n"
+                "  3. טשטש/חתוך פנים מהוידאו ב-CapCut/Premiere לפני העלאה\n\n"
+                f"מקור: {body[:400]}"
+            )
+        # Friendly hint: real-person filter on reference IMAGE
+        if "InputImageSensitiveContentDetected" in body:
+            raise RuntimeError(
+                "❌ Seedance חסם תמונת רפרנס כי היא מזהה פנים של אדם אמיתי.\n\n"
+                "💡 השתמש בתמונה בלי פנים זיהויות, או טשטש את הפנים לפני העלאה.\n\n"
+                f"מקור: {body[:400]}"
+            )
+        raise RuntimeError(f"BytePlus submit failed [{response.status_code}]: {body}")
 
     data = response.json()
     task_id = (data.get("id") or data.get("task_id") or data.get("request_id")
