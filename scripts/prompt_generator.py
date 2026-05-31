@@ -614,16 +614,25 @@ def generate_continuation_prompt(
 
     Returns one continuation prompt string.
     """
-    if not is_chrome_available():
-        raise RuntimeError(
-            f"Chrome with CDP not running on port {CDP_PORT}. "
-            "Run START_CHROME.bat first."
-        )
-
-    try:
-        from playwright.sync_api import sync_playwright
-    except ImportError:
-        raise RuntimeError("playwright not installed.")
+    use_api = _use_api()
+    if not use_api and not is_chrome_available():
+        try:
+            from anthropic_client import is_available as _anth_ok
+            if _anth_ok():
+                use_api = True
+            else:
+                raise RuntimeError(
+                    f"Chrome CDP not running on port {CDP_PORT} AND ANTHROPIC_API_KEY missing."
+                )
+        except Exception as _e:
+            raise RuntimeError(
+                f"Chrome CDP not running on port {CDP_PORT} and Anthropic API unavailable: {_e}"
+            )
+    if not use_api:
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError:
+            raise RuntimeError("playwright not installed.")
 
     n_user_images = len(image_paths) if image_paths else 0
     extra_attachments = []
@@ -667,6 +676,30 @@ Write ONE 9-layer UGC video prompt that picks up EXACTLY from the last frame of 
 
 Output the continuation prompt now."""
 
+    # ── API path (cloud) ──
+    if use_api:
+        log("  [anthropic API] generating continuation prompt...")
+        from anthropic_client import call_claude_api
+        api_attachments = [Path(p_) for p_ in (image_paths or []) if Path(p_).exists()]
+        if last_frame_path and Path(last_frame_path).exists():
+            api_attachments.append(Path(last_frame_path))
+        api_msg = user_msg.replace(
+            "  - Then the MP4 of the just-rendered opener video.\n",
+            "",
+        )
+        response = call_claude_api(api_msg, attachments=api_attachments, log=log)
+        parts = response.split("```")
+        for i, p_ in enumerate(parts):
+            if i % 2 == 1 and p_.strip():
+                first, _, rest = p_.partition("\n")
+                if first and len(first) < 20 and " " not in first.strip():
+                    return rest.strip()
+                return p_.strip()
+        if response.strip():
+            return response.strip()
+        raise RuntimeError("Empty continuation response from Anthropic API")
+
+    # ── CDP path (local) ──
     log(f"  [claude.ai] connecting on port {CDP_PORT} for continuation...")
 
     with sync_playwright() as p:
