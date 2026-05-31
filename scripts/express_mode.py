@@ -140,8 +140,8 @@ def render_express_ui(project_root: Path) -> None:
     with col_d:
         ex_default_dur = st.selectbox(
             "משך ברירת מחדל (שניות)",
-            [5, 8, 10, 15, 20, 25, 30], index=3,
-            format_func=lambda x: f"{x}s" + (" (×2 chunks)" if x > 15 else ""),
+            [5, 8, 10, 15, 20, 25, 30, 40, 45, 60], index=3,
+            format_func=lambda x: f"{x}s" + (f" (×{(x + 14) // 15} chunks)" if x > 15 else ""),
             key="ex_dur",
         )
     with col_r:
@@ -247,7 +247,7 @@ def render_express_ui(project_root: Path) -> None:
             with dc:
                 dur_i = st.number_input(
                     f"משך וידאו {i+1} (שניות)",
-                    min_value=5, max_value=30, value=int(ex_default_dur), step=1,
+                    min_value=5, max_value=60, value=int(ex_default_dur), step=1,
                     key=f"ex_dur_{i}",
                 )
             with rc:

@@ -687,6 +687,41 @@ if not IS_EXPRESS:
 st.header("5️⃣ שלב 4: ייצור הוידאו (אופציונלי)")
 st.caption("שולח את הפרומטים שנכתבו לסידנס, מקבל MP4. ניתן ליצור הכל או רק חלק.")
 
+# Recover orphaned tasks from previous session (Streamlit reload, network blip).
+try:
+    from task_queue import get_pending as _tq_pending, mark_done as _tq_done
+    from byteplus_client import poll_task as _tq_poll, extract_video_url as _tq_xtract, download_video as _tq_dl
+    _pending = _tq_pending(min_age_seconds=30)
+    if _pending:
+        st.warning(
+            f"⚠ נמצאו **{len(_pending)} משימות שיש לאסוף** "
+            f"מסשן קודם שלא הורדנו (כנראה הסשן נפל באמצע). "
+            f"שילמת עליהן — אפשר לאסוף אותן בלי לשלם שוב."
+        )
+        if st.button(f"🔄 אסוף עכשיו את {len(_pending)} המשימות", key="resume_pending_btn"):
+            with st.status("מאסף...", expanded=True) as _resume_status:
+                for _t in _pending:
+                    _tid = _t["task_id"]
+                    _vid = _t.get("video_id", "?")
+                    _ci = _t.get("chunk_idx", 1)
+                    try:
+                        _resume_status.write(f"📥 {_tid} (video #{_vid} chunk {_ci})...")
+                        _result = _tq_poll(_tid, log=_resume_status.write)
+                        _url = _tq_xtract(_result)
+                        from datetime import datetime as _dt2
+                        _ts = _dt2.now().strftime("%Y%m%d_%H%M%S")
+                        _cp = OUTPUTS_DIR / "videos" / f"resumed_{_vid}_{_ts}_c{_ci}.mp4"
+                        _cp.parent.mkdir(parents=True, exist_ok=True)
+                        _tq_dl(_url, _cp)
+                        _tq_done(_tid, output_path=str(_cp))
+                        _resume_status.write(f"  ✓ {_cp.name}")
+                    except Exception as _e:
+                        _resume_status.write(f"  ❌ {_tid}: {_e}")
+                _resume_status.update(label="✓ סיום", state="complete")
+            st.rerun()
+except Exception:
+    pass
+
 s4_disabled = not st.session_state.get("stage3") or not IMGBB_API_KEY
 videos_with_prompts = []
 if st.session_state.get("stage3"):
@@ -775,11 +810,19 @@ if videos_with_prompts:
                             ratio = video.get("aspect_ratio", "9:16")
                             resolution = video.get("resolution", "720p")
 
-                            # Plan chunks: ≤15 = single, >15 = 15s opener + (dur-15)s continuation
+                            # Plan chunks: ≤15 = single, >15 = N×15s + remainder
+                            # Seedance max per request = 15s, min per request = 5s
                             if duration <= 15:
                                 chunk_durations = [duration]
                             else:
-                                chunk_durations = [15, duration - 15]
+                                full_chunks = duration // 15
+                                remainder = duration % 15
+                                chunk_durations = [15] * full_chunks
+                                if remainder >= 5:
+                                    chunk_durations.append(remainder)
+                                elif remainder > 0:
+                                    chunk_durations[-1] = 15 - (5 - remainder)
+                                    chunk_durations.append(5)
                             multi_chunk = len(chunk_durations) > 1
 
                             if multi_chunk and not is_ffmpeg_available():
@@ -839,6 +882,14 @@ if videos_with_prompts:
                                         extra_payload={"resolution": resolution},
                                     )
                                     last_task_id = task_id
+                                    try:
+                                        from task_queue import add_task as _tq_add
+                                        _tq_add(task_id, video_id=video["id"], chunk_idx=ci,
+                                                total_chunks=len(chunk_durations),
+                                                prompt=chunk_prompt, duration=chunk_dur,
+                                                aspect_ratio=ratio)
+                                    except Exception as _te:
+                                        s4_status.write(f"    ⚠ task_queue.add_task failed: {_te}")
                                     s4_status.write(f"    task_id: {task_id}")
                                     s4_status.write("  ⏳ ממתין (עד 15 דקות)...")
                                     try:
@@ -858,6 +909,11 @@ if videos_with_prompts:
                                 cp.parent.mkdir(parents=True, exist_ok=True)
                                 download_video(video_url, cp)
                                 chunk_videos.append(cp)
+                                try:
+                                    from task_queue import mark_done as _tq_done
+                                    _tq_done(last_task_id, output_path=str(cp))
+                                except Exception:
+                                    pass
                                 s4_status.write(f"  ✓ {cp.name}")
 
                             # Concat chunks if multi
