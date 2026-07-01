@@ -141,6 +141,11 @@ with st.sidebar:
 # Show logged-in user + logout in the sidebar.
 render_logout_button()
 
+# Voice mode (Seed Audio 1.0). If active, it takes over the whole page.
+from audio_studio import maybe_render_audio_studio
+if maybe_render_audio_studio(PROJECT_ROOT):
+    st.stop()
+
 # Express mode (paste prompts → videos). Renders mode selector + Express UI.
 from express_mode import maybe_render_express
 IS_EXPRESS = maybe_render_express(PROJECT_ROOT)
