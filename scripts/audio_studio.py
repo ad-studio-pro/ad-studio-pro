@@ -105,23 +105,23 @@ def render_audio_studio(project_root: Path) -> None:
             st.warning("הפרומט ארוך מדי (מקסימום 2048 תווים).")
             st.stop()
 
-        audio_urls = []
+        # Reference audio → base64 (audio_data), sent straight to the API.
+        # No external upload needed — far more reliable on Streamlit Cloud
+        # than catbox (which is blocked from datacenter IPs).
+        references = None
         if ref_files:
-            if _upload_to_catbox is None:
-                st.error("אין רכיב העלאה זמין לרפרנס-אודיו.")
-                st.stop()
-            ref_dir = project_root / "assets" / "ref_audio"
-            ref_dir.mkdir(parents=True, exist_ok=True)
-            with st.status("מעלה רפרנס-אודיו...", expanded=True) as up:
+            import base64 as _b64
+            refs = []
+            with st.status("מכין רפרנס-אודיו...", expanded=True) as up:
                 for uf in ref_files[:3]:
-                    local = ref_dir / uf.name
-                    local.write_bytes(uf.getvalue())
-                    url = _upload_to_catbox(local)
-                    audio_urls.append(url)
-                    up.write(f"✓ {uf.name} → {url}")
+                    raw = uf.getvalue()
+                    if len(raw) > 10 * 1024 * 1024:
+                        up.write(f"⚠️ {uf.name} גדול מ-10MB — דילגתי (מגבלה: 10MB / 30 שניות).")
+                        continue
+                    refs.append({"audio_data": _b64.b64encode(raw).decode()})
+                    up.write(f"✓ {uf.name} מוכן")
                 up.update(label="רפרנס-אודיו מוכן", state="complete")
-
-        references = build_references(audio=audio_urls or None)
+            references = refs or None
         out_dir = project_root / "outputs" / "audio"
         ext = "ogg" if fmt == "ogg_opus" else fmt
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
