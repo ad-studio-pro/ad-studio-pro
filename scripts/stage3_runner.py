@@ -23,6 +23,7 @@ from language_rule import ENGLISH_DIALOGUE_RULE
 def run_stage3(plan: dict, product: dict,
                 image_path: Path = None,
                 image_paths: list = None,
+                image_roles: list = None,
                 limit: int = None,
                 user_notes: str = "",
                 log=print, progress=None) -> dict:
@@ -65,6 +66,7 @@ def run_stage3(plan: dict, product: dict,
             structure_cache[family],
             format_cache[fmt_num],
             n_images=n_imgs,
+            image_roles=image_roles,
         )
         if user_notes:
             message = f"USER NOTES (must reflect in the prompt):\n```\n{user_notes}\n```\n\n" + message

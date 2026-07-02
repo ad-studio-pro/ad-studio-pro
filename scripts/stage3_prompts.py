@@ -51,8 +51,26 @@ def load_format_details(format_number: int) -> str:
 
 def build_per_video_message(video_row: dict, product_info: dict,
                               structure_text: str, format_text: str,
-                              n_images: int = 1) -> str:
-    """Build the user message to Claude for ONE video prompt."""
+                              n_images: int = 1, image_roles: list = None) -> str:
+    """Build the user message to Claude for ONE video prompt.
+
+    image_roles: optional list of user-provided role labels per image
+    (e.g. ["bottle - front", "measuring scoop", "box - back"]) aligned
+    with Image 1..N. Injected so Claude assigns each reference correctly.
+    """
+    # Optional role map — tells Claude what each reference image IS
+    role_map_block = ""
+    if image_roles and any((r or "").strip() for r in image_roles):
+        role_lines = "\n".join(
+            f"    @Image {i+1} = {r.strip()}"
+            for i, r in enumerate(image_roles) if (r or "").strip()
+        )
+        role_map_block = (
+            "\n  IMAGE ROLE MAP (user-provided — use each reference ONLY for its designated role):\n"
+            f"{role_lines}\n"
+            "  When a beat shows a specific component/variant, reference its exact @Image number per this map."
+        )
+
     # Build a multi-image directive based on how many references are attached
     if n_images > 1:
         multi_image_block = (
@@ -62,6 +80,7 @@ def build_per_video_message(video_row: dict, product_info: dict,
             f"  Each beat that shows the product should reference a SPECIFIC image number from 1 to {n_images}.\n"
             f"  Include a consistency anchor: \"All product references @Image 1 through @Image {n_images} must remain visually unchanged across cuts — same colors, materials, shapes as in their respective source images.\"\n"
             f"  NEVER write \"a pack of {n_images} rings\" as if Image 1 contains all of them — each image is one variant/angle, treat them as separate references."
+            + role_map_block
         )
     else:
         multi_image_block = (

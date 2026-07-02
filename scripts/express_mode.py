@@ -193,6 +193,34 @@ def render_express_ui(project_root: Path) -> None:
             with thumb_cols[idx % 5]:
                 st.image(ip, width=120, caption=f"Image {idx+1}")
 
+        # Per-image role tags + @Image cheat sheet for multi-product videos
+        if len(ex_image_paths) > 1:
+            st.caption(
+                "🏷 **תפקיד לכל תמונה (מומלץ)** — עוזר לך לכתוב פרומט שמשלב "
+                "כמה מוצרים/רכיבים בסרטון אחד בלי בלבול."
+            )
+            ex_roles = []
+            role_cols = st.columns(min(len(ex_image_paths), 3))
+            for idx in range(len(ex_image_paths)):
+                with role_cols[idx % 3]:
+                    r = st.text_input(
+                        f"@Image {idx+1}",
+                        key=f"ex_img_role_{idx}",
+                        placeholder="למשל: בקבוק - חזית / רכיב / אריזה",
+                    )
+                    ex_roles.append(r.strip())
+            st.session_state["image_roles"] = ex_roles
+            tagged = [f"@Image {i+1} = {r}" for i, r in enumerate(ex_roles) if r]
+            if tagged:
+                st.info(
+                    "📋 **מפת רפרנסים לפרומט** — העתק לפרומט ועגן כל beat לתמונה הנכונה:\n\n"
+                    + "\n".join(f"- `{t}`" for t in tagged)
+                    + "\n\nדוגמה: *\"[00:00] she holds @Image 1 ... [00:05] close-up on @Image 2 next to it — "
+                    "all references must remain visually unchanged across cuts.\"*"
+                )
+        else:
+            st.session_state["image_roles"] = []
+
     st.markdown("**🎥 וידאו רפרנס (אופציונלי — עד 3, כל אחד ≤15 שניות)**")
     st.caption(
         "אם יש לך וידאו דוגמה (קליפ של מתחרה / יוצר אחר / וידאו ישן שלכם) — "

@@ -55,8 +55,13 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 OUTPUTS_DIR = PROJECT_ROOT / "outputs"
 
 st.set_page_config(page_title="Ad Studio Pro", page_icon="🎬", layout="wide")
-st.title("🎬 Ad Studio Pro")
-st.caption(f"Multi-product Seedance 2.0 campaign factory · ברוך הבא {_user['email']}")
+
+# Branded theme (CSS + RTL) and hero header
+from ui_theme import inject_theme, render_hero
+inject_theme()
+render_hero(_user.get("email", ""))
+# st.title("🎬 Ad Studio Pro")  # replaced by render_hero
+
 
 # ════════════════════════════════════════════════════════════
 # Sidebar — collapsible status (closed by default)
@@ -177,11 +182,30 @@ if not IS_EXPRESS:
             # Backward-compat — first image is the "primary" for Gemini Vision
             st.session_state["image_path"] = image_paths[0]
 
-            # Thumbnails row
+            # Thumbnails row + per-image role tags
             thumb_cols = st.columns(min(len(image_paths), 5))
             for idx, ip in enumerate(image_paths):
                 with thumb_cols[idx % 5]:
                     st.image(ip, width=120, caption=f"Image {idx+1}")
+
+            if len(image_paths) > 1:
+                st.caption(
+                    "🏷 **תפקיד לכל תמונה (מומלץ!)** — קלוד ישתמש בזה כדי לשלב "
+                    "את כל המוצרים/הרכיבים נכון בסרטון אחד (@Image 1, @Image 2...)."
+                )
+                image_roles = []
+                role_cols = st.columns(min(len(image_paths), 3))
+                for idx, ip in enumerate(image_paths):
+                    with role_cols[idx % 3]:
+                        role = st.text_input(
+                            f"@Image {idx+1}",
+                            key=f"img_role_{idx}",
+                            placeholder="למשל: בקבוק - חזית / כף מדידה / האריזה מאחור",
+                        )
+                        image_roles.append(role.strip())
+                st.session_state["image_roles"] = image_roles
+            else:
+                st.session_state["image_roles"] = []
 
     with col_b:
         sub_a, sub_b = st.columns(2)
@@ -572,6 +596,7 @@ if not IS_EXPRESS:
                         product=product,
                         image_path=image_path,
                         image_paths=[Path(ip) for ip in st.session_state.get("image_paths", [str(image_path)])],
+                        image_roles=st.session_state.get("image_roles") or None,
                         limit=s3_limit if s3_limit > 0 else None,
                         user_notes=user_notes.strip(),
                         log=lambda m: s.write(m),
@@ -692,6 +717,10 @@ if not IS_EXPRESS:
 st.header("5️⃣ שלב 4: ייצור הוידאו (אופציונלי)")
 st.caption("שולח את הפרומטים שנכתבו לסידנס, מקבל MP4. ניתן ליצור הכל או רק חלק.")
 
+# Reference audio (music / voiceover) — shared by Express + Full pipeline.
+from ref_audio_helper import render_ref_audio_ui, get_ref_audio_urls
+render_ref_audio_ui(PROJECT_ROOT)
+
 # Recover orphaned tasks from previous session (Streamlit reload, network blip).
 try:
     from task_queue import get_pending as _tq_pending, mark_done as _tq_done
@@ -807,6 +836,11 @@ if videos_with_prompts:
                         s4_status.write(f"  ✓ Image {idx}: {ip.name}")
                     base_image_url = base_image_urls[0] if base_image_urls else None  # backward-compat
 
+                    # Reference audio (Audio Studio voice + uploaded MP3s) — once per batch
+                    ref_audio_urls = get_ref_audio_urls(log=s4_status.write)
+                    if ref_audio_urls:
+                        s4_status.write(f"🎵 {len(ref_audio_urls)} רפרנס אודיו יצורפו (@Audio 1..{len(ref_audio_urls)})")
+
                     for vi, video in enumerate(todo, 1):
                         s4_status.write(f"\n━━━ Video {vi}/{len(todo)}: {video['id']} ({video.get('format_name')}) ━━━")
                         try:
@@ -844,6 +878,7 @@ if videos_with_prompts:
                                     chunk_image_urls = list(base_image_urls)
                                     from ref_video_helper import get_ref_video_urls
                                     chunk_video_refs = get_ref_video_urls(log=s4_status.write)
+                                    chunk_audio_refs = list(ref_audio_urls)
                                     chunk_prompt = video["prompt"]
                                 else:
                                     s4_status.write("  🔗 מחלץ פריים אחרון...")
@@ -857,7 +892,8 @@ if videos_with_prompts:
                                     continuation = pg.generate_continuation_prompt(
                                         opener_prompt=chunk_prompts_used[-1],
                                         brief=video.get("scene_summary", ""),
-                                        image_paths=[Path(st.session_state["image_path"])],
+                                        image_paths=[Path(ip) for ip in st.session_state.get(
+                                            "image_paths", [st.session_state["image_path"]])],
                                         video_path=chunk_videos[-1],
                                         last_frame_path=last_frame_path,
                                         target_duration=chunk_dur,
@@ -866,6 +902,7 @@ if videos_with_prompts:
                                     )
                                     chunk_image_urls = list(base_image_urls)
                                     chunk_video_refs = [vid_url]
+                                    chunk_audio_refs = []  # audio refs go on the opener only
                                     chunk_prompt = continuation
 
                                 chunk_prompts_used.append(chunk_prompt)
@@ -880,6 +917,7 @@ if videos_with_prompts:
                                         prompt=chunk_prompt,
                                         image_urls=chunk_image_urls,
                                         video_urls=chunk_video_refs,
+                                        audio_urls=chunk_audio_refs,
                                         ratio=ratio,
                                         duration=chunk_dur,
                                         generate_audio=video.get("generate_audio", True),
