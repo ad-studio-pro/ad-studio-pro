@@ -450,12 +450,19 @@ def render_express_ui(project_root: Path) -> None:
                         key="ex_gen_size",
                         placeholder="e.g. a 25cm tall bottle / a palm-sized jar / a 10cm box",
                     )
+                _dur_opts = [10, 15, 20, 25, 30]
+                _top_dur = int(st.session_state.get("ex_dur", 15) or 15)
                 gen_dur = st.select_slider(
-                    "משך הסרטון לפרומט",
-                    options=[10, 15, 20, 25, 30],
-                    value=15 if len(ex_image_paths) <= 5 else 20,
+                    "משך הסרטון לפרומט (זה מה שקובע — גם לפרומט וגם לוידאו)",
+                    options=_dur_opts,
+                    value=_top_dur if _top_dur in _dur_opts else 15,
                     key="ex_gen_dur",
                     help="מעל 15 שניות = הסרטון ייווצר בכמה חלקים שיודבקו אוטומטית.",
+                )
+                _per_variant = max(1, (int(gen_dur) - 4) // max(1, len(ex_image_paths)))
+                st.caption(
+                    f"⏱ ב-{int(gen_dur)} שניות כל אחד מ-{len(ex_image_paths)} הצבעים יקבל ~{_per_variant} שניות מסך"
+                    + (" — קצר מאוד; שקול 20-25s או פחות צבעים." if _per_variant < 2 else ".")
                 )
                 gen_prompt = build_multi_product_ugc_prompt(
                     len(ex_image_paths),
