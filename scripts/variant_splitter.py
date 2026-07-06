@@ -91,3 +91,33 @@ def extract_variants(image_path, names, out_dir, log=print, progress=None) -> li
         if progress:
             progress(i, len(names))
     return results
+
+
+def name_images(image_paths, log=print) -> list:
+    """One Gemini vision call: short English name per attached image, in order."""
+    key = _get("GEMINI_API_KEY", "")
+    if not key:
+        raise RuntimeError("GEMINI_API_KEY missing")
+    paths = [Path(p) for p in image_paths][:9]
+    parts = [{"text": (
+        f"Attached are {len(paths)} product photos, ONE variant per photo, in order. "
+        "Return ONLY a JSON array of exactly that many short English names, one per "
+        "photo IN THE SAME ORDER, each naming the color/pattern + product type, e.g. "
+        '["black silicone ring", "leopard print silicone ring"]. JSON only.'
+    )}]
+    for ip in paths:
+        b64 = base64.b64encode(ip.read_bytes()).decode()
+        mime = _MIMES.get(ip.suffix.lower(), "image/jpeg")
+        parts.append({"inline_data": {"mime_type": mime, "data": b64}})
+    url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
+           f"{DETECT_MODEL}:generateContent?key={key}")
+    r = requests.post(url, json={"contents": [{"role": "user", "parts": parts}]}, timeout=90)
+    if r.status_code >= 400:
+        raise RuntimeError(f"Gemini naming failed [{r.status_code}]: {r.text[:300]}")
+    text = r.json()["candidates"][0]["content"]["parts"][0]["text"]
+    m = re.search(r"\[[\s\S]*\]", text)
+    if not m:
+        raise RuntimeError(f"No JSON array in reply: {text[:200]}")
+    names = [str(n).strip() for n in json.loads(m.group(0))]
+    names = (names + [""] * len(paths))[:len(paths)]
+    return names

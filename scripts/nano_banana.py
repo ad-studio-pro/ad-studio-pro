@@ -37,7 +37,54 @@ def _get(key, default=""):
 
 GEMINI_API_KEY = _get("GEMINI_API_KEY", "")
 
-GEMINI_IMAGE_MODEL = "gemini-2.5-flash-image-preview"
+# Model discovery: Google renames image models often (2.5-flash-image-preview →
+# 2.5-flash-image → 3.1-flash-image ...). We resolve at runtime via ListModels,
+# with a preference-ordered fallback chain. Override with GEMINI_IMAGE_MODEL env.
+_FALLBACK_IMAGE_MODELS = [
+    "gemini-3.1-flash-image",
+    "gemini-3-pro-image-preview",
+    "gemini-2.5-flash-image",
+    "gemini-2.5-flash-image-preview",
+]
+_MODEL_CACHE = {"resolved": None}
+
+
+def _discover_image_model(key, log=print):
+    """Pick the best available image-generation model for this API key."""
+    if _MODEL_CACHE["resolved"]:
+        return _MODEL_CACHE["resolved"]
+    override = _get("GEMINI_IMAGE_MODEL", "")
+    if override:
+        _MODEL_CACHE["resolved"] = override
+        return override
+    try:
+        r = requests.get(
+            f"https://generativelanguage.googleapis.com/v1beta/models?key={key}&pageSize=200",
+            timeout=30,
+        )
+        if r.status_code < 400:
+            names = []
+            for m in r.json().get("models", []):
+                short = m.get("name", "").split("/")[-1]
+                methods = m.get("supportedGenerationMethods") or []
+                if "image" in short.lower() and "generateContent" in methods:
+                    names.append(short)
+            for pref in _FALLBACK_IMAGE_MODELS:
+                if pref in names:
+                    _MODEL_CACHE["resolved"] = pref
+                    log(f"  🎨 image model: {pref}")
+                    return pref
+            if names:
+                names.sort(reverse=True)
+                _MODEL_CACHE["resolved"] = names[0]
+                log(f"  🎨 image model (auto): {names[0]}")
+                return names[0]
+    except Exception as e:
+        log(f"  ⚠ ListModels failed: {e}")
+    return _FALLBACK_IMAGE_MODELS[0]
+
+
+GEMINI_IMAGE_MODEL = _FALLBACK_IMAGE_MODELS[0]  # backward-compat default
 
 
 def generate_scene_image(
@@ -80,11 +127,6 @@ def generate_scene_image(
                     ".png": "image/png", ".webp": "image/webp"}.get(ext, "image/jpeg")
             parts.append({"inline_data": {"mime_type": mime, "data": b64}})
 
-    url = (
-        "https://generativelanguage.googleapis.com/v1beta/models/"
-        f"{GEMINI_IMAGE_MODEL}:generateContent?key={gemini_key}"
-    )
-
     payload = {
         "contents": [{"role": "user", "parts": parts}],
         "generationConfig": {
@@ -93,12 +135,30 @@ def generate_scene_image(
         },
     }
 
-    log(f"  🎨 Generating scene image via Nano Banana 2...")
-    response = requests.post(url, json=payload, timeout=120)
-    if response.status_code >= 400:
-        raise RuntimeError(
-            f"Nano Banana failed [{response.status_code}]: {response.text[:400]}"
+    # Try the resolved model first, then walk the fallback chain on 404.
+    primary = _discover_image_model(gemini_key, log=log)
+    candidates = [primary] + [m for m in _FALLBACK_IMAGE_MODELS if m != primary]
+    response = None
+    last_err = ""
+    for model_name in candidates:
+        url = (
+            "https://generativelanguage.googleapis.com/v1beta/models/"
+            f"{model_name}:generateContent?key={gemini_key}"
         )
+        log(f"  🎨 Generating image via {model_name}...")
+        response = requests.post(url, json=payload, timeout=120)
+        if response.status_code == 404:
+            last_err = response.text[:200]
+            log(f"  ⚠ {model_name} not found — trying next model")
+            continue
+        if response.status_code >= 400:
+            raise RuntimeError(
+                f"Nano Banana failed [{response.status_code}]: {response.text[:400]}"
+            )
+        _MODEL_CACHE["resolved"] = model_name  # remember the winner
+        break
+    else:
+        raise RuntimeError(f"No available Gemini image model. Last error: {last_err}")
 
     data = response.json()
 

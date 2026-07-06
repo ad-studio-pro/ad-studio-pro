@@ -230,7 +230,7 @@ def render_express_ui(project_root: Path) -> None:
                     or k.startswith("ex_ratio_")
                     or k.startswith("sel_")
                     or k in ("stage2", "stage3", "stage4", "video_results",
-                             "split_variant_paths", "split_variant_roles")
+                             "split_variant_paths", "split_variant_roles", "_autoname_sig")
                 ):
                     st.session_state.pop(k, None)
             st.rerun()
@@ -357,6 +357,30 @@ def render_express_ui(project_root: Path) -> None:
                 "🏷 **תפקיד לכל תמונה (מומלץ)** — עוזר לך לכתוב פרומט שמשלב "
                 "כמה מוצרים/רכיבים בסרטון אחד בלי בלבול."
             )
+
+            # Auto-name: one Gemini call fills all role fields on first upload
+            _roles_empty = not any(
+                (st.session_state.get(f"ex_img_role_{_i}") or "").strip()
+                for _i in range(len(ex_image_paths))
+            )
+            _paths_sig = "|".join(ex_image_paths)
+            if _roles_empty and st.session_state.get("_autoname_sig") != _paths_sig:
+                st.session_state["_autoname_sig"] = _paths_sig
+                try:
+                    from nano_banana import is_available as _nb_ok2
+                    if _nb_ok2():
+                        import importlib as _il2
+                        import variant_splitter as _vs2
+                        _il2.reload(_vs2)
+                        with st.spinner("🤖 Gemini מזהה את הצבעים ונותן שמות אוטומטית..."):
+                            _auto_names = _vs2.name_images(ex_image_paths)
+                        for _i, _n in enumerate(_auto_names):
+                            if _n:
+                                st.session_state[f"ex_img_role_{_i}"] = _n
+                        st.toast(f"✅ זוהו {sum(1 for n_ in _auto_names if n_)} שמות אוטומטית")
+                except Exception as _e:
+                    st.caption(f"⚠ זיהוי אוטומטי נכשל ({_e}) — אפשר למלא ידנית.")
+
             ex_roles = []
             role_cols = st.columns(min(len(ex_image_paths), 3))
             for idx in range(len(ex_image_paths)):
