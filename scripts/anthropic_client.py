@@ -78,15 +78,27 @@ def call_claude_api(user_message: str,
             if not p.exists():
                 log(f"  (skipping missing attachment: {p})")
                 continue
-            ext = p.suffix.lower()
-            mime = {".jpg": "image/jpeg", ".jpeg": "image/jpeg",
-                    ".png": "image/png", ".webp": "image/webp",
-                    ".gif": "image/gif"}.get(ext)
+            raw = p.read_bytes()
+            # Detect the REAL media type from magic bytes — AI generators often
+            # save JPEG data with a .png filename, and the Anthropic API rejects
+            # mismatched media_type declarations.
+            if raw.startswith(b"\x89PNG"):
+                mime = "image/png"
+            elif raw.startswith(b"\xff\xd8"):
+                mime = "image/jpeg"
+            elif raw[:4] == b"RIFF" and raw[8:12] == b"WEBP":
+                mime = "image/webp"
+            elif raw.startswith(b"GIF8"):
+                mime = "image/gif"
+            else:
+                ext = p.suffix.lower()
+                mime = {".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+                        ".png": "image/png", ".webp": "image/webp",
+                        ".gif": "image/gif"}.get(ext)
             if not mime:
                 log(f"  (skipping non-image attachment: {p})")
                 continue
-            with open(p, "rb") as f:
-                b64 = base64.b64encode(f.read()).decode()
+            b64 = base64.b64encode(raw).decode()
             content.append({
                 "type": "image",
                 "source": {

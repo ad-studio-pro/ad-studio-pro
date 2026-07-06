@@ -61,6 +61,8 @@ st.set_page_config(page_title="Ad Studio Pro", page_icon="🎬", layout="wide",
 # Reload first — Streamlit Cloud hot-reloads app.py on git push but keeps
 # imported modules cached in the running process; without this, new functions
 # in ui_theme raise ImportError until a manual reboot.
+import anthropic_client as _anthropic_mod
+importlib.reload(_anthropic_mod)
 import ui_theme as _ui_theme_mod
 importlib.reload(_ui_theme_mod)
 from ui_theme import inject_theme, render_hero, render_stepper, compute_full_pipeline_steps
