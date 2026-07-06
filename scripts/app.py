@@ -54,10 +54,11 @@ for mod in (pg, stage1_runner, stage2_runner, stage3_runner):
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 OUTPUTS_DIR = PROJECT_ROOT / "outputs"
 
-st.set_page_config(page_title="Ad Studio Pro", page_icon="🎬", layout="wide")
+st.set_page_config(page_title="Ad Studio Pro", page_icon="🎬", layout="wide",
+                   initial_sidebar_state="collapsed")
 
 # Branded theme (CSS + RTL) and hero header
-from ui_theme import inject_theme, render_hero
+from ui_theme import inject_theme, render_hero, render_stepper, compute_full_pipeline_steps
 inject_theme()
 render_hero(_user.get("email", ""))
 # st.title("🎬 Ad Studio Pro")  # replaced by render_hero
@@ -161,7 +162,9 @@ if not IS_EXPRESS:
     # ════════════════════════════════════════════════════════════
     # Stage 0 — Inputs
     # ════════════════════════════════════════════════════════════
-    st.header("1️⃣ העלה תמונת מוצר + בחר פרמטרים")
+    render_stepper(compute_full_pipeline_steps(st.session_state))
+    st.header("1️⃣ העלה תמונות מוצר + בחר פרמטרים")
+    st.caption("מעלים 1-9 תמונות (מוצר, צבעים, רכיבים, זוויות) — כל תמונה תהפוך ל-@Image שאפשר להראות בסרטון.")
 
     col_a, col_b = st.columns([1, 2])
     with col_a:

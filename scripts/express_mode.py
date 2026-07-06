@@ -20,6 +20,78 @@ prompts with zero changes to Stage 4 itself.
 from pathlib import Path
 import streamlit as st
 
+
+def build_multi_product_ugc_prompt(n_images: int, roles: list, duration: int,
+                                     wear_mode: str = "ring") -> str:
+    """Build a paste-ready Seedance 2.0 UGC prompt that shows ALL uploaded
+    product images (@Image 1..N) in one video. Pure string building — no API.
+    """
+    duration = max(10, min(int(duration), 60))
+    labels = []
+    for i in range(n_images):
+        role = (roles[i].strip() if roles and i < len(roles) and roles[i] else "")
+        # Only embed the hint if it's English — Hebrew inside the prompt confuses Seedance
+        labels.append(role if role and role.isascii() else "")
+
+    # Time budget: 2s hook, ~2s closing, rest split across products
+    body_time = duration - 4
+    per = max(2, body_time // max(1, n_images))
+    beats = []
+    t = 2
+    for i in range(n_images):
+        ts = f"[00:{t:02d}]"
+        what = f" ({labels[i]})" if labels[i] else ""
+        if wear_mode == "ring":
+            if i == 0:
+                beats.append(
+                    f"{ts} Jump cut — she slides the ring from @Image 1{what} onto her LEFT index finger, "
+                    f"holds her hand up close to the camera and says: \"this is the first one — look at that color.\""
+                )
+            else:
+                beats.append(
+                    f"{ts} Jump cut, slightly closer or from a different angle — she swaps to the ring from "
+                    f"@Image {i+1}{what} on the SAME LEFT index finger, shows it to the camera and reacts naturally "
+                    f"(\"okay this one might be my favorite\" / \"this color goes with everything\" — vary the line)."
+                )
+        else:
+            if i == 0:
+                beats.append(
+                    f"{ts} Jump cut — she picks up the product from @Image 1{what} in her LEFT hand, "
+                    f"holds it close to the camera and says: \"this is the first one — look at this.\""
+                )
+            else:
+                beats.append(
+                    f"{ts} Jump cut, slightly closer or from a different angle — she puts the previous one down "
+                    f"off-screen and holds up the product from @Image {i+1}{what} in her LEFT hand, reacting naturally "
+                    f"(\"okay this one might be my favorite\" — vary the line)."
+                )
+        t += per
+    beats_text = "\n".join(beats)
+    img_range = f"@Image 1 through @Image {n_images}"
+    if wear_mode == "ring":
+        anchor_rule = ("Her LEFT index finger is the only finger that ever wears a ring; "
+                       "her right hand stays empty or holds the box.")
+        final_line = "she spreads her fingers toward the camera showing the last ring"
+        neg_extra = "no duplicate rings, no ring on any other finger"
+    else:
+        anchor_rule = ("She always holds the product in her LEFT hand; her right hand stays "
+                       "empty or gestures only.")
+        final_line = "she holds the last product up next to her smile"
+        neg_extra = "no duplicate products, nothing held in her right hand"
+
+    return f"""{duration}s UGC style product review video, filmed on smartphone, natural window light, front-facing selfie angle. A woman in her late 20s with shoulder-length dark hair, natural human skin (not airbrushed, not plastic), soft matte complexion, wearing a casual oversized t-shirt, sits in a bright lived-in living room — couch with throw pillows, a green plant, a coffee mug on the table behind her.
+
+[00:00] She looks at the camera holding a small open box and says: \"okay so I got the WHOLE color set — let me show you every single one.\"
+{beats_text}
+[00:{duration-2:02d}] Final shot — {final_line}, smiles and says: \"honestly? get more than one.\"
+
+PRODUCT CONSISTENCY: every item shown must look IDENTICAL to its source reference — {img_range} must remain visually unchanged across all cuts: same color, same material, same shape as in their respective source images. Each image is ONE separate variant — never merge them, never show a multi-pack as one object. Only ONE item is visible at any moment; the previous one is fully removed off-screen before the next appears. {anchor_rule}
+
+Each jump cut is slightly closer or at a different angle, as if filmed in multiple takes. She speaks casual American English with natural pauses between thoughts. The lighting is natural window light — slightly uneven. The image is natural phone quality, not color graded, soft focus. The sound is direct from the phone mic with faint room ambience.
+
+Negative: {neg_extra}, no second person, no brand text overlays, no studio lighting, no cinematic grading."""
+
+
 try:
     from upload_video import upload_video as _upload_video_to_catbox
 except Exception:
@@ -220,6 +292,39 @@ def render_express_ui(project_root: Path) -> None:
                 )
         else:
             st.session_state["image_roles"] = []
+
+        # ── Auto prompt generator: one UGC video that shows ALL products ──
+        if len(ex_image_paths) > 1:
+            with st.expander("🪄 מחולל אוטומטי: פרומט UGC אחד שמציג את כל המוצרים", expanded=True):
+                st.caption(
+                    f"העלית {len(ex_image_paths)} תמונות — לחיצה אחת בונה פרומט מוכן שבו הדמות "
+                    "מדברת על כל הווריאציות ומראה כל אחת מהן, אחת אחרי השנייה, עם כל חוקי העקביות."
+                )
+                gen_mode = st.radio(
+                    "איך מציגים כל מוצר?",
+                    ["💍 נלבש על אצבע (טבעות)", "🤲 מוחזק ביד (כל מוצר אחר)"],
+                    index=0, horizontal=True, key="ex_gen_mode",
+                )
+                gen_dur = st.select_slider(
+                    "משך הסרטון לפרומט",
+                    options=[10, 15, 20, 25, 30],
+                    value=15 if len(ex_image_paths) <= 5 else 20,
+                    key="ex_gen_dur",
+                    help="מעל 15 שניות = הסרטון ייווצר בכמה חלקים שיודבקו אוטומטית.",
+                )
+                gen_prompt = build_multi_product_ugc_prompt(
+                    len(ex_image_paths),
+                    st.session_state.get("image_roles", []),
+                    int(gen_dur),
+                    wear_mode="ring" if gen_mode.startswith("💍") else "held",
+                )
+                if st.button("🪄 בנה פרומט לכל המוצרים → וידאו #1", type="primary",
+                              use_container_width=True, key="ex_gen_btn"):
+                    st.session_state["ex_prompt_0"] = gen_prompt
+                    st.session_state["ex_dur_0"] = int(gen_dur)
+                    st.success("✅ הפרומט נכנס לוידאו #1 למטה — אפשר לערוך אותו ואז לגלול לשלב 4 לייצור.")
+                with st.expander("👁 תצוגה מקדימה של הפרומט", expanded=False):
+                    st.code(gen_prompt, language=None)
 
     st.markdown("**🎥 וידאו רפרנס (אופציונלי — עד 3, כל אחד ≤15 שניות)**")
     st.caption(
