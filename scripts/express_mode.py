@@ -21,6 +21,26 @@ from pathlib import Path
 import streamlit as st
 
 
+def build_product_asset_sheet_prompt(label: str = "", wear_mode: str = "ring") -> str:
+    """Seedream 5.0 / Nano Banana prompt: one reference sheet showing the SAME
+    product variant from all sides. Upload the result back as that variant's
+    @Image — one sheet gives Seedance every angle it needs.
+    """
+    desc = label if (label and label.isascii()) else "the product from the attached reference photo"
+    use_panel = ("worn on a hand — natural close-up of a hand wearing it"
+                 if wear_mode == "ring"
+                 else "in use — a hand holding it naturally, close-up")
+    return f"""Product reference sheet layout, ONE single image divided into 6 clean panels on a seamless white studio background:
+[1] {desc}, facing the camera straight on, centered
+[2] left side profile at 90 degrees
+[3] right side profile at 90 degrees
+[4] top-down view from directly above
+[5] extreme macro close-up of the surface texture, edge and any engraving
+[6] {use_panel}
+
+EXACTLY the same product in all 6 panels — same color, same material, same proportions, identical details in every panel. The product must match the attached reference photo exactly. Soft even studio lighting, subtle contact shadows, photorealistic commercial product photography, 4K, high detail."""
+
+
 def build_multi_product_ugc_prompt(n_images: int, roles: list, duration: int,
                                      wear_mode: str = "ring") -> str:
     """Build a paste-ready Seedance 2.0 UGC prompt that shows ALL uploaded
@@ -325,6 +345,22 @@ def render_express_ui(project_root: Path) -> None:
                     st.success("✅ הפרומט נכנס לוידאו #1 למטה — אפשר לערוך אותו ואז לגלול לשלב 4 לייצור.")
                 with st.expander("👁 תצוגה מקדימה של הפרומט", expanded=False):
                     st.code(gen_prompt, language=None)
+
+            # ── Multi-angle reference sheets: one image per variant, all sides ──
+            with st.expander("🖼 מחולל תמונות מכל הזוויות (Reference Sheet לכל צבע)", expanded=False):
+                st.caption(
+                    "לכל וריאציה נבנה פרומט ל-**Seedream 5.0 / Nano Banana**: תמונה אחת עם 6 פאנלים — "
+                    "חזית, שני פרופילים, מלמעלה, מאקרו, ועל היד. מדביקים את הפרומט במחולל התמונות "
+                    "**עם התמונה המקורית מצורפת**, ואת התוצאה מעלים לכאן בחזרה במקום התמונה המקורית — "
+                    "ככה סידנס מקבלת את כל הזוויות של כל טבעת בתמונה אחת ויכולה להנפיש אותה מכל כיוון."
+                )
+                sheet_mode = "ring" if st.session_state.get("ex_gen_mode", "💍").startswith("💍") else "held"
+                roles_now = st.session_state.get("image_roles", [])
+                for idx in range(len(ex_image_paths)):
+                    label = roles_now[idx] if idx < len(roles_now) else ""
+                    title = label if label else f"Image {idx+1}"
+                    st.markdown(f"**@Image {idx+1} — {title}**")
+                    st.code(build_product_asset_sheet_prompt(label, sheet_mode), language=None)
 
     st.markdown("**🎥 וידאו רפרנס (אופציונלי — עד 3, כל אחד ≤15 שניות)**")
     st.caption(

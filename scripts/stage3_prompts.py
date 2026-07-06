@@ -25,6 +25,16 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(PROJECT_ROOT / ".env")
 
 CDP_PORT = int(os.getenv("CDP_PORT", "9224"))
+
+MULTI_PRODUCT_RULES = """  VARIANT-SET PROTOCOL (research-based, from the official Seedance 2.0 manual patterns):
+  1. Each @Image is ONE separate variant (color/angle/component). NEVER merge variants, NEVER show a multi-pack as one object, NEVER invent colors that have no reference image.
+  2. Rotation beats: give each variant its own timestamped beat with a different camera angle/distance. Every beat that shows a product MUST name its exact @Image number.
+  3. Anchor repeatedly: reference each @Image at the exact moment it appears on screen AND once in the global consistency line — Seedance needs the mid-timeline reminder, not just a mention at the top.
+  4. One-at-a-time rule: only ONE variant visible at any moment; the previous variant is fully removed off-screen before the next appears. Anchor the wear/hold location ONCE (e.g. her LEFT index finger / his LEFT hand) and never move it between beats.
+  5. Optional finale: the last beat may show all variants together — if so, write \"all {n} variants from @Image 1 through @Image {n} laid out in a row, each matching its own source image exactly\".
+  6. Time budget: ~2s hook + at least 2s per variant + ~2s close. If the duration cannot fit all variants at 2s each, show FEWER variants rather than rushing beats.
+  7. Negatives to append: no duplicate products, no merged colors, no variant worn on two places at once, no extra invented variants."""
+
 SKILL_DIR = PROJECT_ROOT / "skills" / "seedance-campaign-factory"
 
 
@@ -81,6 +91,7 @@ def build_per_video_message(video_row: dict, product_info: dict,
             f"  Include a consistency anchor: \"All product references @Image 1 through @Image {n_images} must remain visually unchanged across cuts — same colors, materials, shapes as in their respective source images.\"\n"
             f"  NEVER write \"a pack of {n_images} rings\" as if Image 1 contains all of them — each image is one variant/angle, treat them as separate references."
             + role_map_block
+            + "\n" + MULTI_PRODUCT_RULES.replace("{n}", str(n_images))
         )
     else:
         multi_image_block = (

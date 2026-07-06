@@ -553,3 +553,35 @@ with linked IDs (e.g. `v007 (1/2)` + `v008 (2/2)`):
   `"Open on the exact visual state at the last frame of @Video 1 —
   {explicit description} — then continue with: {Chunk B beats}"`.
 - Pass Video A in Chunk B's `video_urls` as `@Video 1`.
+
+
+# Multi-Product / Variant-Set Handling (2+ reference images)
+
+When the user uploads N images that are N variants of the product (e.g. 7 ring
+colors) — not just angles of one item — every structure (A/B/C/D) adds this
+protocol on top of its template:
+
+1. **Role map.** @Image 1..N — each image is ONE variant. Never merge variants,
+   never render a "multi-pack" as a single object, never invent unreferenced colors.
+2. **Rotation beats.** Each variant gets its own timestamped beat at a different
+   camera angle/distance, naming its exact @Image number.
+3. **Anchor repeatedly.** Name each @Image at the moment it appears AND in the
+   global consistency line. Seedance needs mid-timeline reminders (official-manual
+   pattern: references are anchored multiple times across the timeline).
+4. **One at a time.** Only one variant visible at any moment; previous variant fully
+   removed off-screen first. Wear/hold location anchored once (LEFT index finger /
+   LEFT hand) and never moves.
+5. **Global consistency line.** "All product references @Image 1 through @Image N
+   must remain visually unchanged across cuts — same colors, materials, shapes as in
+   their respective source images."
+6. **Time budget.** ~2s hook + ≥2s per variant + ~2s close. 7 variants → 20s+
+   (multi-chunk). Too short? Show fewer variants, never rush beats under 2s.
+7. **Optional finale.** All variants laid out together, "each matching its own
+   source image exactly".
+8. **Negatives.** no duplicate products, no merged colors, no variant in two places
+   at once, no extra invented variants.
+
+**Reference sheets upgrade.** For maximum consistency, each variant's @Image should
+ideally be a 6-panel reference sheet (front / left / right / top / macro / worn)
+generated in Seedream 5.0 Lite or Nano Banana from the original photo — one sheet
+gives Seedance every angle of that variant.

@@ -604,3 +604,12 @@ Save to `/mnt/user-data/outputs/[brand]-cost-comparison.html`. Sections:
 - `SKILL.md` — this file (the orchestrator)
 - `references/format-catalog.md` — 23 format definitions + compatibility matrix
 - `references/structures.md` — 4 prompt structures (A/B/C/D) with templates and examples
+
+
+## Multi-image variant sets
+
+If the user uploads 2-9 images that are separate variants (colors/models), apply the
+**Multi-Product / Variant-Set Handling** protocol at the end of
+`references/structures.md` on top of every structure: role map per @Image, rotation
+beats, repeated anchoring, one-variant-at-a-time, global consistency line, 2s+ per
+variant time budget.

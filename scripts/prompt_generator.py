@@ -96,6 +96,14 @@ NO OTHER PRODUCT INSTANCES, ANYWHERE — root cause of "the product changes mid-
         GOOD: "this just lives on me now"
     * The ONLY product reference allowed in the prompt body is "Image 1" / "the {generic product noun}" (referring to Image 1 only). No other product instance exists.
 
+MULTI-PRODUCT VARIANT SETS (when several reference images are attached — e.g. 7 ring colors):
+    * Each attached image is ONE separate variant: refer to them as "Image 1" ... "Image N". NEVER merge them, NEVER show a multi-pack as one object, NEVER invent unreferenced colors.
+    * Rotation beats: each variant gets its own timestamped jump cut at a different angle/distance, naming its exact Image number ("[00:04] jump cut — she swaps to the ring from Image 2 on the SAME left index finger").
+    * Only ONE variant visible at any moment; previous variant fully removed off-screen first. The wear/hold location is anchored once and never moves.
+    * Anchor each Image number at the moment it appears AND in the consistency line: "All product references Image 1 through Image N must remain visually unchanged across cuts — same colors, materials, shapes as in their respective source images."
+    * Time budget: ~2s hook + >=2s per variant + ~2s close. Too many variants for the duration -> show fewer, never rush.
+    * Optional finale: all variants laid out in a row, "each matching its own source image exactly".
+
 AUDIENCE: American consumers. ALL persons in every prompt MUST be AMERICAN — write them as Americans of various heritages, not as foreign nationals. SETTING is in the United States (American kitchens, American gyms, American suburbs/cities, American cars, American hospital scrubs, etc.).
 
 When generating multiple variations, vary HARD between them — each variation MUST use a DIFFERENT American person along these axes:
