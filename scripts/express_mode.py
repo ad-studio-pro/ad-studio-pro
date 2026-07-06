@@ -216,7 +216,8 @@ def render_express_ui(project_root: Path) -> None:
                     or k.startswith("ex_dur_")
                     or k.startswith("ex_ratio_")
                     or k.startswith("sel_")
-                    or k in ("stage2", "stage3", "stage4", "video_results")
+                    or k in ("stage2", "stage3", "stage4", "video_results",
+                             "split_variant_paths", "split_variant_roles")
                 ):
                     st.session_state.pop(k, None)
             st.rerun()
@@ -280,6 +281,58 @@ def render_express_ui(project_root: Path) -> None:
             ex_image_paths.append(str(path))
         st.session_state["image_paths"] = ex_image_paths
         st.session_state["image_path"] = ex_image_paths[0]
+
+        # ── If variants were already auto-split, use them instead of the group photo ──
+        _split_paths = st.session_state.get("split_variant_paths")
+        if _split_paths and len(ex_image_paths) == 1 and all(Path(sp_).exists() for sp_ in _split_paths):
+            ex_image_paths = list(_split_paths)
+            st.session_state["image_paths"] = ex_image_paths
+            st.session_state["image_path"] = ex_image_paths[0]
+            for _i, _r in enumerate(st.session_state.get("split_variant_roles", [])):
+                st.session_state.setdefault(f"ex_img_role_{_i}", _r)
+            st.info(
+                f"✂️ משתמש ב-**{len(ex_image_paths)} הווריאציות שהופרדו אוטומטית** במקום בתמונה המקורית. "
+                "רוצה להתחיל מחדש? לחץ '🧹 איפוס מלא' למעלה."
+            )
+
+        # ── Auto variant splitter: one group photo → separate variants ──
+        if len(ex_image_paths) == 1:
+            with st.expander("✂️ יש בתמונה כמה צבעים ביחד? הפרד אוטומטית לתמונות נפרדות", expanded=True):
+                st.caption(
+                    "אם התמונה מציגה כמה וריאציות של המוצר ביחד (למשל ערימת טבעות ב-7 צבעים) — "
+                    "לחיצה אחת: Gemini מזהה כל צבע, יוצר לכל אחד תמונת מוצר נקייה על רקע לבן, "
+                    "ונותן שמות אוטומטית. בסוף תקבל @Image נפרד לכל צבע + המחולל ייפתח לבד."
+                )
+                try:
+                    from nano_banana import is_available as _nb_ok
+                    _nb_available = _nb_ok()
+                except Exception:
+                    _nb_available = False
+                if not _nb_available:
+                    st.warning("חסר GEMINI_API_KEY ב-Secrets — נדרש להפרדה האוטומטית.")
+                elif st.button("✂️ הפרד אוטומטית לווריאציות", type="primary",
+                                use_container_width=True, key="ex_split_btn"):
+                    import importlib as _il
+                    import variant_splitter as _vs
+                    _il.reload(_vs)
+                    with st.status("✂️ מפריד וריאציות...", expanded=True) as _sp:
+                        try:
+                            _names = _vs.detect_variants(ex_image_paths[0], log=_sp.write)
+                            if len(_names) < 2:
+                                _sp.update(label="זוהתה וריאציה אחת בלבד — אין מה להפריד", state="complete")
+                            else:
+                                _sp.write(f"✓ זוהו {len(_names)} וריאציות: " + ", ".join(_names))
+                                _results = _vs.extract_variants(
+                                    ex_image_paths[0], _names,
+                                    save_dir / "variants", log=_sp.write,
+                                )
+                                st.session_state["split_variant_paths"] = [r_[0] for r_ in _results]
+                                st.session_state["split_variant_roles"] = [r_[1] for r_ in _results]
+                                _sp.update(label=f"✅ נוצרו {len(_results)} תמונות נפרדות עם שמות", state="complete")
+                                st.rerun()
+                        except Exception as _e:
+                            _sp.update(label=f"❌ {_e}", state="error", expanded=True)
+
         thumb_cols = st.columns(min(len(ex_image_paths), 5))
         for idx, ip in enumerate(ex_image_paths):
             with thumb_cols[idx % 5]:
