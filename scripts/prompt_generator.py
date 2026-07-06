@@ -75,6 +75,8 @@ CRITICAL RULES:
 - Brand name ONLY at the very end as cleanly-separated syllables (e.g. "Thunder Fit", "Glow Drop"), with explicit pronunciation: "she/he pronounces each syllable clearly with a small pause between them"
 - Casual dialogue with filler ("okay so", "literally", "I'm not even", "like"), unfinished thoughts, natural breathing
 - NEVER use: acne, pimples, blemishes, rosacea, cinematic, professional, stunning, 8k, studio, perfect
+- SCALE ANCHOR (mandatory in every prompt): state the product's TRUE physical size and anchor proportions to a body part ("a slim silicone ring, about 2cm, small relative to her hand" / "a palm-sized jar"). Seedance renders products oversized without an explicit scale anchor — repeat the proportion cue in at least one mid-video beat.
+- NO on-screen text EVER: every negative block must include "no on-screen text, no captions, no subtitles" — Seedance renders garbled unreadable letters when captions appear.
 - USE for skin: "natural human skin (not airbrushed, not plastic)", "soft matte complexion", "real skin texture you'd see on a phone screen", "rested face", "even skin tone", "minimal-makeup look". NEVER use "hint of shine", "shine on forehead", "light freckles across her face/nose", "slight unevenness", "visible pores" (Seedance amplifies these into ugly artifacts).
 - Setting needs 3+ SPECIFIC objects (not generic — e.g. "stainless steel counter, wooden cutting board with chopped onions, kitchen towel over shoulder")
 - All prompts in English (Seedance handles English best)

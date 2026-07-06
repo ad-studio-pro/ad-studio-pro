@@ -33,7 +33,8 @@ MULTI_PRODUCT_RULES = """  VARIANT-SET PROTOCOL (research-based, from the offici
   4. One-at-a-time rule: only ONE variant visible at any moment; the previous variant is fully removed off-screen before the next appears. Anchor the wear/hold location ONCE (e.g. her LEFT index finger / his LEFT hand) and never move it between beats.
   5. Optional finale: the last beat may show all variants together — if so, write \"all {n} variants from @Image 1 through @Image {n} laid out in a row, each matching its own source image exactly\".
   6. Time budget: ~2s hook + at least 2s per variant + ~2s close. If the duration cannot fit all variants at 2s each, show FEWER variants rather than rushing beats.
-  7. Negatives to append: no duplicate products, no merged colors, no variant worn on two places at once, no extra invented variants."""
+  7. Negatives to append: no duplicate products, no merged colors, no variant worn on two places at once, no extra invented variants.
+  8. SCALE ANCHOR (mandatory): state the product's true physical size explicitly and anchor it to a body part or the environment (e.g. \"a slim silicone ring, ~2cm, small relative to her hand\", \"a 25cm bottle, forearm-length\"). Seedance oversizes products without an explicit scale anchor — repeat the proportion cue in at least one mid-timeline beat."""
 
 SKILL_DIR = PROJECT_ROOT / "skills" / "seedance-campaign-factory"
 
@@ -122,7 +123,8 @@ Write the COMPLETE Seedance 2.0 prompt using the structure above. Follow the tem
 REQUIREMENTS:
 - Use only the cinematic vocabulary allowed for this family (Structure A: NEVER cinematic, Structure B/C/D: cinematic is encouraged).
 {multi_image_block}
-- Add the negative block with category-specific negatives (jewelry → no second ring; beverage → no competitor bottle; etc.).
+- Add the negative block with category-specific negatives (jewelry → no second ring; beverage → no competitor bottle; etc.), and ALWAYS include: "no on-screen text, no captions, no subtitles" (Seedance renders garbled letters otherwise).
+- SCALE: state the product's true physical size explicitly and keep realistic proportions relative to hands/body/environment (e.g. "a slim silicone ring, ~2cm, small on her finger") — Seedance oversizes products without an explicit scale anchor.
 - Word count target — A: 100-260, B: 120-300, C: 180-350, D: 150-280.
 - All in English.
 

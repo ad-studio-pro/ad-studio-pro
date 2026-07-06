@@ -42,7 +42,8 @@ EXACTLY the same product in all 6 panels — same color, same material, same pro
 
 
 def build_multi_product_ugc_prompt(n_images: int, roles: list, duration: int,
-                                     wear_mode: str = "ring") -> str:
+                                     wear_mode: str = "ring",
+                                     size_desc: str = "") -> str:
     """Build a paste-ready Seedance 2.0 UGC prompt that shows ALL uploaded
     product images (@Image 1..N) in one video. Pure string building — no API.
     """
@@ -93,11 +94,21 @@ def build_multi_product_ugc_prompt(n_images: int, roles: list, duration: int,
                        "her right hand stays empty or holds the box.")
         final_line = "she spreads her fingers toward the camera showing the last ring"
         neg_extra = "no duplicate rings, no ring on any other finger"
+        scale_line = ("SCALE / TRUE SIZE: each item is a slim silicone ring — a small band "
+                      "roughly 2 centimeters (0.8 inch) across that fits on a finger. Keep "
+                      "realistic real-world proportions relative to her hand in EVERY frame; "
+                      "the ring must never appear larger than her finger, never the size of "
+                      "a bracelet or an object held with two hands.")
     else:
         anchor_rule = ("She always holds the product in her LEFT hand; her right hand stays "
                        "empty or gestures only.")
         final_line = "she holds the last product up next to her smile"
         neg_extra = "no duplicate products, nothing held in her right hand"
+        size_txt = size_desc.strip() if (size_desc and size_desc.isascii()) else ""
+        scale_line = ("SCALE / TRUE SIZE: "
+                      + (f"the product's real physical size is: {size_txt}. " if size_txt else "")
+                      + "Keep realistic real-world proportions relative to her hands and the "
+                      "room in every frame — the product must never be rendered oversized.")
 
     return f"""{duration}s UGC style product review video, filmed on smartphone, natural window light, front-facing selfie angle. A woman in her late 20s with shoulder-length dark hair, natural human skin (not airbrushed, not plastic), soft matte complexion, wearing a casual oversized t-shirt, sits in a bright lived-in living room — couch with throw pillows, a green plant, a coffee mug on the table behind her.
 
@@ -105,11 +116,13 @@ def build_multi_product_ugc_prompt(n_images: int, roles: list, duration: int,
 {beats_text}
 [00:{duration-2:02d}] Final shot — {final_line}, smiles and says: \"honestly? get more than one.\"
 
+{scale_line}
+
 PRODUCT CONSISTENCY: every item shown must look IDENTICAL to its source reference — {img_range} must remain visually unchanged across all cuts: same color, same material, same shape as in their respective source images. Each image is ONE separate variant — never merge them, never show a multi-pack as one object. Only ONE item is visible at any moment; the previous one is fully removed off-screen before the next appears. {anchor_rule}
 
 Each jump cut is slightly closer or at a different angle, as if filmed in multiple takes. She speaks casual American English with natural pauses between thoughts. The lighting is natural window light — slightly uneven. The image is natural phone quality, not color graded, soft focus. The sound is direct from the phone mic with faint room ambience.
 
-Negative: {neg_extra}, no second person, no brand text overlays, no studio lighting, no cinematic grading."""
+Negative: {neg_extra}, no on-screen text, no captions or subtitles of any kind, no second person, no brand text overlays, no studio lighting, no cinematic grading."""
 
 
 try:
@@ -378,6 +391,13 @@ def render_express_ui(project_root: Path) -> None:
                     ["💍 נלבש על אצבע (טבעות)", "🤲 מוחזק ביד (כל מוצר אחר)"],
                     index=0, horizontal=True, key="ex_gen_mode",
                 )
+                gen_size = ""
+                if gen_mode.startswith("🤲"):
+                    gen_size = st.text_input(
+                        "גודל אמיתי של המוצר (באנגלית — חשוב לפרופורציות!)",
+                        key="ex_gen_size",
+                        placeholder="e.g. a 25cm tall bottle / a palm-sized jar / a 10cm box",
+                    )
                 gen_dur = st.select_slider(
                     "משך הסרטון לפרומט",
                     options=[10, 15, 20, 25, 30],
@@ -390,6 +410,7 @@ def render_express_ui(project_root: Path) -> None:
                     st.session_state.get("image_roles", []),
                     int(gen_dur),
                     wear_mode="ring" if gen_mode.startswith("💍") else "held",
+                    size_desc=gen_size,
                 )
                 if st.button("🪄 בנה פרומט לכל המוצרים → וידאו #1", type="primary",
                               use_container_width=True, key="ex_gen_btn"):

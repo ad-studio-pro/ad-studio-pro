@@ -19,6 +19,22 @@ _CSS = """
 html, body, [data-testid="stAppViewContainer"] * {
     font-family: 'Heebo', 'Segoe UI', sans-serif;
 }
+/* CRITICAL: restore Streamlit's icon fonts — the Heebo override above turns
+   Material icon ligatures into raw text like "keyboard_arrow_right" */
+span[data-testid="stIconMaterial"], [data-testid="stIconMaterial"],
+.material-icons, [class^="material-symbols"], [class*=" material-symbols"] {
+    font-family: 'Material Symbols Outlined', 'Material Symbols Rounded', 'Material Icons' !important;
+}
+/* Videos: keep vertical 9:16 results a sane size, centered */
+[data-testid="stVideo"] video, .stVideo video, video {
+    max-height: 520px !important;
+    width: auto !important;
+    max-width: 100% !important;
+    display: block;
+    margin: 0 auto;
+    border-radius: 12px;
+    background: #000;
+}
 [data-testid="stAppViewContainer"] .block-container {
     padding-top: 1.2rem;
     max-width: 1200px;
