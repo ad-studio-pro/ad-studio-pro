@@ -57,7 +57,12 @@ OUTPUTS_DIR = PROJECT_ROOT / "outputs"
 st.set_page_config(page_title="Ad Studio Pro", page_icon="🎬", layout="wide",
                    initial_sidebar_state="collapsed")
 
-# Branded theme (CSS + RTL) and hero header
+# Branded theme (CSS + RTL) and hero header.
+# Reload first — Streamlit Cloud hot-reloads app.py on git push but keeps
+# imported modules cached in the running process; without this, new functions
+# in ui_theme raise ImportError until a manual reboot.
+import ui_theme as _ui_theme_mod
+importlib.reload(_ui_theme_mod)
 from ui_theme import inject_theme, render_hero, render_stepper, compute_full_pipeline_steps
 inject_theme()
 render_hero(_user.get("email", ""))
@@ -148,11 +153,15 @@ with st.sidebar:
 render_logout_button()
 
 # Voice mode (Seed Audio 1.0). If active, it takes over the whole page.
+import audio_studio as _audio_studio_mod
+importlib.reload(_audio_studio_mod)
 from audio_studio import maybe_render_audio_studio
 if maybe_render_audio_studio(PROJECT_ROOT):
     st.stop()
 
 # Express mode (paste prompts → videos). Renders mode selector + Express UI.
+import express_mode as _express_mode_mod
+importlib.reload(_express_mode_mod)
 from express_mode import maybe_render_express
 IS_EXPRESS = maybe_render_express(PROJECT_ROOT)
 
@@ -721,6 +730,8 @@ st.header("5️⃣ שלב 4: ייצור הוידאו (אופציונלי)")
 st.caption("שולח את הפרומטים שנכתבו לסידנס, מקבל MP4. ניתן ליצור הכל או רק חלק.")
 
 # Reference audio (music / voiceover) — shared by Express + Full pipeline.
+import ref_audio_helper as _ref_audio_mod
+importlib.reload(_ref_audio_mod)
 from ref_audio_helper import render_ref_audio_ui, get_ref_audio_urls
 render_ref_audio_ui(PROJECT_ROOT)
 
