@@ -43,7 +43,8 @@ EXACTLY the same product in all 6 panels — same color, same material, same pro
 
 def build_multi_product_ugc_prompt(n_images: int, roles: list, duration: int,
                                      wear_mode: str = "ring",
-                                     size_desc: str = "") -> str:
+                                     size_desc: str = "",
+                                     sheets_active: bool = False) -> str:
     """Build a paste-ready Seedance 2.0 UGC prompt that shows ALL uploaded
     product images (@Image 1..N) in one video. Pure string building — no API.
     """
@@ -93,12 +94,16 @@ def build_multi_product_ugc_prompt(n_images: int, roles: list, duration: int,
         anchor_rule = ("Her LEFT index finger is the only finger that ever wears a ring; "
                        "her right hand stays empty or holds the box.")
         final_line = "she spreads her fingers toward the camera showing the last ring"
-        neg_extra = "no duplicate rings, no ring on any other finger"
+        neg_extra = ("no duplicate rings, no ring on any other finger, "
+                     "no warped or deformed ring geometry")
         scale_line = ("SCALE / TRUE SIZE: each item is a slim silicone ring — a small band "
                       "roughly 2 centimeters (0.8 inch) across that fits on a finger. Keep "
                       "realistic real-world proportions relative to her hand in EVERY frame; "
                       "the ring must never appear larger than her finger, never the size of "
-                      "a bracelet or an object held with two hands.")
+                      "a bracelet or an object held with two hands. GEOMETRY: the ring is a "
+                      "perfectly smooth, evenly-thick circular band — its shape must stay "
+                      "perfect in every frame: no warping, no bending, no melting, no "
+                      "squashing, no oval distortion.")
     else:
         anchor_rule = ("She always holds the product in her LEFT hand; her right hand stays "
                        "empty or gestures only.")
@@ -110,6 +115,12 @@ def build_multi_product_ugc_prompt(n_images: int, roles: list, duration: int,
                       + "Keep realistic real-world proportions relative to her hands and the "
                       "room in every frame — the product must never be rendered oversized.")
 
+    sheets_block = ("\nREFERENCE SHEETS: each @Image is a multi-angle reference sheet of ONE "
+                    "variant (front, side profiles, top-down, macro texture, worn on hand). "
+                    "The item in the video must match its sheet exactly — same shape, same "
+                    "thickness, same proportions, from every camera angle.\n"
+                    if sheets_active else "")
+
     return f"""{duration}s UGC style product review video, filmed on smartphone, natural window light, front-facing selfie angle. A woman in her late 20s with shoulder-length dark hair, natural human skin (not airbrushed, not plastic), soft matte complexion, wearing a casual oversized t-shirt, sits in a bright lived-in living room — couch with throw pillows, a green plant, a coffee mug on the table behind her.
 
 [00:00] She looks at the camera holding a small open box and says: \"okay so I got the WHOLE color set — let me show you every single one.\"
@@ -117,7 +128,7 @@ def build_multi_product_ugc_prompt(n_images: int, roles: list, duration: int,
 [00:{duration-2:02d}] Final shot — {final_line}, smiles and says: \"honestly? get more than one.\"
 
 {scale_line}
-
+{sheets_block}
 PRODUCT CONSISTENCY: every item shown must look IDENTICAL to its source reference — {img_range} must remain visually unchanged across all cuts: same color, same material, same shape as in their respective source images. Each image is ONE separate variant — never merge them, never show a multi-pack as one object. Only ONE item is visible at any moment; the previous one is fully removed off-screen before the next appears. {anchor_rule}
 
 Each jump cut is slightly closer or at a different angle, as if filmed in multiple takes. She speaks casual American English with natural pauses between thoughts. The lighting is natural window light — slightly uneven. The image is natural phone quality, not color graded, soft focus. The sound is direct from the phone mic with faint room ambience.
@@ -230,7 +241,8 @@ def render_express_ui(project_root: Path) -> None:
                     or k.startswith("ex_ratio_")
                     or k.startswith("sel_")
                     or k in ("stage2", "stage3", "stage4", "video_results",
-                             "split_variant_paths", "split_variant_roles", "_autoname_sig")
+                             "split_variant_paths", "split_variant_roles", "_autoname_sig",
+                             "sheet_variant_paths", "_sheets_src_sig", "_sheets_active")
                 ):
                     st.session_state.pop(k, None)
             st.rerun()
@@ -307,6 +319,22 @@ def render_express_ui(project_root: Path) -> None:
                 f"✂️ משתמש ב-**{len(ex_image_paths)} הווריאציות שהופרדו אוטומטית** במקום בתמונה המקורית. "
                 "רוצה להתחיל מחדש? לחץ '🧹 איפוס מלא' למעלה."
             )
+
+        # ── If multi-angle reference sheets were generated, use them instead ──
+        _cur_sig = "|".join(ex_image_paths)
+        if (st.session_state.get("_sheets_src_sig") == _cur_sig
+                and st.session_state.get("sheet_variant_paths")
+                and all(Path(sp_).exists() for sp_ in st.session_state["sheet_variant_paths"])):
+            ex_image_paths = list(st.session_state["sheet_variant_paths"])
+            st.session_state["image_paths"] = ex_image_paths
+            st.session_state["image_path"] = ex_image_paths[0]
+            st.session_state["_sheets_active"] = True
+            st.info(
+                f"🖼 משתמש ב-**{len(ex_image_paths)} תמונות רפרנס מכל הזוויות** שנוצרו אוטומטית. "
+                "לחזרה לתמונות המקוריות: '🧹 איפוס מלא'."
+            )
+        else:
+            st.session_state["_sheets_active"] = False
 
         # ── Auto variant splitter: one group photo → separate variants ──
         if len(ex_image_paths) == 1:
@@ -435,12 +463,59 @@ def render_express_ui(project_root: Path) -> None:
                     int(gen_dur),
                     wear_mode="ring" if gen_mode.startswith("💍") else "held",
                     size_desc=gen_size,
+                    sheets_active=bool(st.session_state.get("_sheets_active")),
                 )
                 if st.button("🪄 בנה פרומט לכל המוצרים → וידאו #1", type="primary",
                               use_container_width=True, key="ex_gen_btn"):
                     st.session_state["ex_prompt_0"] = gen_prompt
                     st.session_state["ex_dur_0"] = int(gen_dur)
                     st.success("✅ הפרומט נכנס לוידאו #1 למטה — אפשר לערוך אותו ואז לגלול לשלב 4 לייצור.")
+
+                # Premium path: Claude (Opus) writes the prompt with the full
+                # skill ruleset AND sees the actual product images.
+                try:
+                    from anthropic_client import is_available as _cl_ok
+                    _claude_ok = _cl_ok()
+                except Exception:
+                    _claude_ok = False
+                if _claude_ok:
+                    if st.button("🧠 תן ל-Claude לכתוב את הפרומט (רואה את התמונות — איכות מקסימלית)",
+                                  use_container_width=True, key="ex_claude_btn"):
+                        from anthropic_client import call_claude_api
+                        from prompt_generator import SKILL_INSTRUCTIONS
+                        from stage3_prompts import MULTI_PRODUCT_RULES, parse_prompt_from_response
+                        _rules = MULTI_PRODUCT_RULES.replace("{n}", str(len(ex_image_paths)))
+                        _roles_txt = "\n".join(
+                            f"@Image {i_+1} = {r_}"
+                            for i_, r_ in enumerate(st.session_state.get("image_roles", [])) if r_
+                        ) or "(no labels — infer each variant color from its attached image, in order)"
+                        _is_ring = gen_mode.startswith("💍")
+                        _msg = (
+                            f"Write ONE Seedance 2.0 UGC video prompt.\n\n"
+                            f"PRODUCT VARIANTS ({len(ex_image_paths)} reference images attached, in upload order):\n"
+                            f"{_roles_txt}\n\n"
+                            f"PARAMETERS:\n"
+                            f"- Duration: {int(gen_dur)} seconds\n"
+                            f"- Wear mode: {'worn on finger (slim silicone ring, ~2cm)' if _is_ring else 'handheld product'}\n"
+                            + ("- Each @Image is a multi-angle reference sheet of ONE variant.\n"
+                               if st.session_state.get("_sheets_active")
+                               else "- Each @Image is one product photo of ONE variant.\n")
+                            + ("" if _is_ring else f"- Real physical size: {gen_size or 'state realistic proportions vs hands'}\n")
+                            + f"- The video must SHOW ALL {len(ex_image_paths)} variants one at a time per the protocol below.\n\n"
+                            f"{_rules}\n\n"
+                            "OUTPUT: ONE fenced code block containing ONLY the prompt. No commentary."
+                        )
+                        with st.spinner("🧠 Claude מסתכל על התמונות וכותב את הפרומט..."):
+                            try:
+                                _resp = call_claude_api(
+                                    _msg, attachments=list(ex_image_paths),
+                                    system=SKILL_INSTRUCTIONS, max_tokens=4000,
+                                )
+                                st.session_state["ex_prompt_0"] = parse_prompt_from_response(_resp)
+                                st.session_state["ex_dur_0"] = int(gen_dur)
+                                st.success("✅ הפרומט של Claude נכנס לוידאו #1 למטה — גלול לבדוק ולערוך.")
+                            except Exception as _e:
+                                st.error(f"Claude נכשל: {_e}")
                 with st.expander("👁 תצוגה מקדימה של הפרומט", expanded=False):
                     st.code(gen_prompt, language=None)
 
@@ -454,6 +529,32 @@ def render_express_ui(project_root: Path) -> None:
                 )
                 sheet_mode = "ring" if st.session_state.get("ex_gen_mode", "💍").startswith("💍") else "held"
                 roles_now = st.session_state.get("image_roles", [])
+
+                # One-click: Nano Banana builds ALL the sheets and swaps them in
+                if not st.session_state.get("_sheets_active"):
+                    if st.button("🚀 צור אוטומטית את כל תמונות הרפרנס והשתמש בהן (Nano Banana)",
+                                  type="primary", use_container_width=True, key="ex_sheets_btn"):
+                        from nano_banana import generate_scene_image as _gen_img
+                        _src_sig = "|".join(ex_image_paths)
+                        with st.status("🖼 יוצר תמונת רפרנס מכל הזוויות לכל וריאציה...", expanded=True) as _sh:
+                            try:
+                                _new_paths = []
+                                for _idx, _ip in enumerate(ex_image_paths):
+                                    _lbl = roles_now[_idx] if _idx < len(roles_now) else ""
+                                    _sh.write(f"🖼 {_idx+1}/{len(ex_image_paths)} — {_lbl or f'Image {_idx+1}'}")
+                                    _out = save_dir / "sheets" / f"sheet_{_idx+1}.png"
+                                    _gen_img(build_product_asset_sheet_prompt(_lbl, sheet_mode),
+                                             [_ip], _out, log=_sh.write)
+                                    _new_paths.append(str(_out))
+                                st.session_state["sheet_variant_paths"] = _new_paths
+                                st.session_state["_sheets_src_sig"] = _src_sig
+                                _sh.update(label=f"✅ נוצרו {len(_new_paths)} תמונות רפרנס — הוחלפו אוטומטית", state="complete")
+                                st.rerun()
+                            except Exception as _e:
+                                _sh.update(label=f"❌ {_e}", state="error", expanded=True)
+                    st.caption("או ידנית — העתק את הפרומפטים למטה למחולל תמונות חיצוני:")
+                else:
+                    st.success("✅ תמונות הרפרנס פעילות — הסרטון ייווצר מהן.")
                 for idx in range(len(ex_image_paths)):
                     label = roles_now[idx] if idx < len(roles_now) else ""
                     title = label if label else f"Image {idx+1}"

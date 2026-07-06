@@ -35,12 +35,12 @@ def _api_key():
 
 
 def _model():
-    return _get("ANTHROPIC_MODEL", "claude-opus-4-6")
+    return _get("ANTHROPIC_MODEL", "claude-opus-4-8")
 
 
 # Backwards-compatible module attributes.
 ANTHROPIC_API_KEY = _get("ANTHROPIC_API_KEY", "")
-ANTHROPIC_MODEL = _get("ANTHROPIC_MODEL", "claude-opus-4-6")
+ANTHROPIC_MODEL = _get("ANTHROPIC_MODEL", "claude-opus-4-8")
 
 
 def is_available() -> bool:

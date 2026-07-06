@@ -1014,6 +1014,31 @@ if st.session_state.get("stage4"):
         elif isinstance(item, dict):
             _normalized.append(item)
 
+    _existing_vids = [Path(_it.get("path", "")) for _it in _normalized
+                      if _it.get("path") and Path(_it.get("path", "")).exists()]
+    if _existing_vids:
+        import io as _io
+        import zipfile as _zipf
+        _buf = _io.BytesIO()
+        with _zipf.ZipFile(_buf, "w", _zipf.ZIP_STORED) as _zf:
+            for _p2 in _existing_vids:
+                _zf.write(_p2, _p2.name)
+            _plan3 = st.session_state.get("stage3") or {}
+            _txt = "\n\n".join(
+                f"=== Video {v.get('id')} ({v.get('duration_seconds')}s) ===\n{v.get('prompt', '')}"
+                for v in _plan3.get("videos", []) if v.get("prompt"))
+            if _txt:
+                _zf.writestr("prompts.txt", _txt)
+        st.download_button(
+            f"📦 הורד חבילת עריכה ל-CapCut ({len(_existing_vids)} וידאו + פרומפטים)",
+            _buf.getvalue(), file_name="capcut_package.zip", mime="application/zip",
+            use_container_width=True, key="capcut_zip_btn",
+        )
+        st.caption(
+            "חלץ את ה-ZIP → ב-CapCut: New project → Import → בחר את כל הקבצים. "
+            "כל וידאו נכנס כקליפ נפרד לטיימליין, וה-prompts.txt עוזר לכתוביות."
+        )
+
     if not _normalized:
         st.info("אין וידאו זמינים להצגה.")
     else:

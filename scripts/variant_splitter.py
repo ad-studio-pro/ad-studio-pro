@@ -69,11 +69,19 @@ def extraction_prompt(name: str) -> str:
     return (
         f"From the attached photo, extract ONLY the {name} as a standalone "
         "product photo: the single item centered on a seamless white studio "
-        "background, facing the camera, soft even studio lighting, subtle "
-        "contact shadow, photorealistic commercial product photography, high "
-        "detail. It must match its appearance in the attached photo EXACTLY — "
-        "same color, same pattern, same material, same proportions. "
-        "No other items in the frame, no props, no text."
+        "background, three-quarter angle facing the camera, soft even studio "
+        "lighting, subtle contact shadow, photorealistic commercial product "
+        "photography, high detail.\n"
+        "CRITICAL — CATALOG CONSISTENCY: all the variants in this set are the "
+        "SAME product model in different colors. Render this one with IDENTICAL "
+        "geometry to how it appears in the attached photo — identical band "
+        "width, identical thickness, identical diameter and proportions — shot "
+        "from the SAME camera distance and SAME angle as a standard catalog "
+        "set, the item filling about 60% of the frame width. ONLY the "
+        "color/pattern differs between variants.\n"
+        "It must match its appearance in the attached photo EXACTLY — same "
+        "color, same pattern, same material. No other items in the frame, "
+        "no props, no text, no size variation."
     )
 
 
