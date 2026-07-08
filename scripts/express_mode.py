@@ -208,6 +208,7 @@ def _save_express_plan(valid_prompts, gen_audio):
             "duration_seconds": int(p["duration"]),
             "aspect_ratio": p.get("aspect_ratio", "9:16"),
             "generate_audio": bool(gen_audio),
+            "resolution": st.session_state.get("ex_res", "720p"),
             "prompt": p["prompt"].strip(),
         })
     new_plan = {
@@ -249,7 +250,18 @@ def render_express_ui(project_root: Path) -> None:
     with info_col:
         st.caption("💡 'איפוס מלא' מנקה הכל ומתחיל מאפס. שימושי אם נראה לך שיש פרומטים ישנים תקועים.")
 
-    col_n, col_d, col_r = st.columns([1, 1, 1])
+    col_n, col_d, col_r, col_q = st.columns([1, 1, 1, 1])
+    with col_q:
+        ex_resolution = st.selectbox(
+            "איכות וידאו",
+            ["720p", "1080p", "4k"],
+            index=0,
+            key="ex_res",
+            format_func=lambda x: {"720p": "720p — מהיר וזול (ברירת מחדל)",
+                                    "1080p": "1080p — Full HD",
+                                    "4k": "4K — איכות מקסימלית (יקר/איטי)"}[x],
+            help="חל על כל הסרטונים בסשן. 1080p/4K עולים יותר קרדיטים ולוקחים יותר זמן.",
+        )
     with col_n:
         ex_n = st.number_input(
             "כמה וידאו ליצור?",
@@ -337,7 +349,7 @@ def render_express_ui(project_root: Path) -> None:
             st.session_state["_sheets_active"] = False
 
         # ── Auto variant splitter: one group photo → separate variants ──
-        if len(ex_image_paths) == 1:
+        if len(ex_image_paths) == 1 and not st.session_state.get("_sheets_active"):
             with st.expander("✂️ יש בתמונה כמה צבעים ביחד? הפרד אוטומטית לתמונות נפרדות", expanded=True):
                 st.caption(
                     "אם התמונה מציגה כמה וריאציות של המוצר ביחד (למשל ערימת טבעות ב-7 צבעים) — "
@@ -430,6 +442,46 @@ def render_express_ui(project_root: Path) -> None:
                 )
         else:
             st.session_state["image_roles"] = []
+
+            # ── Reference sheet for a single product image ──
+            with st.expander("🖼 צור Reference Sheet מכל הזוויות לתמונה (מומלץ!)",
+                              expanded=not st.session_state.get("_sheets_active")):
+                st.caption(
+                    "Nano Banana יוצר מהתמונה שלך תמונה אחת עם 6 פאנלים — חזית, שני פרופילים, "
+                    "מלמעלה, מאקרו (רואים עובי), ועל היד — ומחליף אותה אוטומטית. "
+                    "ככה סידנס מבין את הצורה האמיתית מכל זווית והמוצר לא יוצא מעוות."
+                )
+                _single_mode = st.radio(
+                    "סוג המוצר",
+                    ["💍 נלבש על אצבע (טבעת)", "🤲 מוחזק ביד (כל מוצר אחר)"],
+                    index=0, horizontal=True, key="ex_sheet_mode_1",
+                )
+                _smode1 = "ring" if _single_mode.startswith("💍") else "held"
+                if not st.session_state.get("_sheets_active"):
+                    if st.button("🚀 צור Reference Sheet והשתמש בו", type="primary",
+                                  use_container_width=True, key="ex_sheets_btn_1"):
+                        from nano_banana import generate_scene_image as _gen1
+                        _src_sig1 = "|".join(ex_image_paths)
+                        with st.status("🖼 יוצר Reference Sheet...", expanded=True) as _sh1:
+                            try:
+                                _out1 = save_dir / "sheets" / "sheet_single.png"
+                                _gen1(build_product_asset_sheet_prompt("", _smode1),
+                                      [ex_image_paths[0]], _out1, log=_sh1.write)
+                                st.session_state["sheet_variant_paths"] = [str(_out1)]
+                                st.session_state["_sheets_src_sig"] = _src_sig1
+                                _sh1.update(label="✅ Reference Sheet נוצר והוחלף אוטומטית", state="complete")
+                                st.rerun()
+                            except Exception as _e1:
+                                _sh1.update(label=f"❌ {_e1}", state="error", expanded=True)
+                    with st.expander("👁 הפרומט (לשימוש ידני במחולל חיצוני)", expanded=False):
+                        st.code(build_product_asset_sheet_prompt("", _smode1), language=None)
+                else:
+                    st.success(
+                        "✅ ה-Reference Sheet פעיל — הסרטון ייווצר ממנו. "
+                        "טיפ לפרומט: הוסף את השורה — "
+                        "*\"@Image 1 is a multi-angle reference sheet of the product — "
+                        "match its exact shape, thickness and proportions from every angle.\"*"
+                    )
 
         # ── Auto prompt generator: one UGC video that shows ALL products ──
         if len(ex_image_paths) > 1:
