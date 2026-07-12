@@ -1139,7 +1139,31 @@ with st.expander("📂 כל הוידאו ששמורים על השרת — גיש
             for _p in _all_mp4s:
                 _mtime = _dt.fromtimestamp(_p.stat().st_mtime)
                 _size_mb = _p.stat().st_size / 1024 / 1024
-                _cols = st.columns([3, 2, 1, 2])
+                _cols = st.columns([3, 2, 1, 2, 1])
+                # 🗑 delete with two-step confirm (paid generations — no accidents)
+                with _cols[4]:
+                    _del_key = f"delask_{_p.name}"
+                    if st.session_state.get(_del_key):
+                        if st.button("✔ מחק", key=f"delok_{_p.name}",
+                                      type="primary", use_container_width=True,
+                                      help="מחיקה סופית מהשרת"):
+                            try:
+                                _p.unlink()
+                                _url_cache.pop(str(_p), None)
+                                st.session_state.pop(_del_key, None)
+                                st.rerun()
+                            except Exception as _de:
+                                st.error(f"מחיקה נכשלה: {_de}")
+                        if st.button("✖ בטל", key=f"delno_{_p.name}",
+                                      use_container_width=True):
+                            st.session_state.pop(_del_key, None)
+                            st.rerun()
+                    else:
+                        if st.button("🗑", key=f"delbtn_{_p.name}",
+                                      use_container_width=True,
+                                      help="הסר את הסרטון מהשרת"):
+                            st.session_state[_del_key] = True
+                            st.rerun()
                 with _cols[0]:
                     st.text(_p.name)
                 with _cols[1]:
