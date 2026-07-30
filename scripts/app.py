@@ -95,47 +95,47 @@ with st.sidebar:
     title = f"{'✅' if anthropic_ok else '⚠️'} Anthropic API (cloud)"
     with st.expander(title, expanded=False):
         if anthropic_ok:
-            st.write("Anthropic API מוגדר. ירוץ Claude דרך ה-API (cloud mode).")
+            st.write("Anthropic API is configured. Claude will run via the API (cloud mode).")
         else:
-            st.warning("חסר ANTHROPIC_API_KEY ב-Streamlit Secrets")
-            st.write("השג ב-https://console.anthropic.com/")
+            st.warning("ANTHROPIC_API_KEY is missing in Streamlit Secrets")
+            st.write("Get one at https://console.anthropic.com/")
 
     # Gemini
     title = f"{'✅' if GEMINI_API_KEY else '⚠️'} Gemini Vision + Nano Banana 2"
     with st.expander(title, expanded=False):
         if GEMINI_API_KEY:
-            st.write("משמש ל-2 דברים:")
-            st.write("1. **Stage 1**: זיהוי קטגוריית מוצר אוטומטית מתמונה")
-            st.write("2. **Nano Banana 2**: יצירת תמונות סצנה (אופציונלי)")
+            st.write("Used for 2 things:")
+            st.write("1. **Stage 1**: automatic product-category detection from an image")
+            st.write("2. **Nano Banana 2**: scene image generation (optional)")
         else:
-            st.warning("חסר GEMINI_API_KEY ב-.env")
-            st.write("השג חינם ב-https://aistudio.google.com/apikey")
+            st.warning("GEMINI_API_KEY is missing in .env")
+            st.write("Get one for free at https://aistudio.google.com/apikey")
 
     # Tavily
     title = f"{'✅' if TAVILY_API_KEY else '⚠️'} Tavily web search"
     with st.expander(title, expanded=False):
         if TAVILY_API_KEY:
-            st.write("רץ 8 חיפושי אינטרנט כדי לאסוף טרנדים בנישה של המוצר.")
+            st.write("Runs 8 web searches to gather trends in the product's niche.")
         else:
-            st.warning("חסר TAVILY_API_KEY ב-.env")
-            st.write("השג ב-https://tavily.com/")
+            st.warning("TAVILY_API_KEY is missing in .env")
+            st.write("Get one at https://tavily.com/")
 
     # imgbb
     title = f"{'✅' if IMGBB_API_KEY else '⚠️'} imgbb image hosting"
     with st.expander(title, expanded=False):
         if IMGBB_API_KEY:
-            st.write("מעלה תמונות מוצר לשרת ציבורי כדי ש-BytePlus יוכל למשוך.")
+            st.write("Uploads product images to a public host so BytePlus can fetch them.")
         else:
-            st.warning("חסר IMGBB_API_KEY ב-.env")
+            st.warning("IMGBB_API_KEY is missing in .env")
 
     # ffmpeg
     title = f"{'✅' if is_ffmpeg_available() else '⚠️'} ffmpeg ready"
     with st.expander(title, expanded=False):
         if is_ffmpeg_available():
-            st.write("ffmpeg זמין דרך imageio-ffmpeg.")
-            st.write("משמש ל: חילוץ פריים אחרון + הדבקת chunks לוידאו ארוך.")
+            st.write("ffmpeg is available via imageio-ffmpeg.")
+            st.write("Used for: extracting the last frame + stitching chunks into a long video.")
         else:
-            st.warning("ffmpeg חסר. הרץ 1_SETUP.bat שוב.")
+            st.warning("ffmpeg is missing. Run 1_SETUP.bat again.")
 
     st.markdown("---")
     st.subheader("Pipeline state")
@@ -174,13 +174,13 @@ if not IS_EXPRESS:
     # Stage 0 — Inputs
     # ════════════════════════════════════════════════════════════
     render_stepper(compute_full_pipeline_steps(st.session_state))
-    st.header("1️⃣ העלה תמונות מוצר + בחר פרמטרים")
-    st.caption("מעלים 1-9 תמונות (מוצר, צבעים, רכיבים, זוויות) — כל תמונה תהפוך ל-@Image שאפשר להראות בסרטון.")
+    st.header("1️⃣ Upload product images + pick parameters")
+    st.caption("Upload 1-9 images (product, colors, components, angles) — each image becomes an @Image you can show in the video.")
 
     col_a, col_b = st.columns([1, 2])
     with col_a:
         uploaded_files = st.file_uploader(
-            "תמונות מוצר (עד 9 — הראשונה = Image 1, השנייה = Image 2 וכו')",
+            "Product images (up to 9 — first = Image 1, second = Image 2, etc.)",
             type=["jpg", "jpeg", "png", "webp"],
             accept_multiple_files=True,
         )
@@ -204,8 +204,8 @@ if not IS_EXPRESS:
 
             if len(image_paths) > 1:
                 st.caption(
-                    "🏷 **תפקיד לכל תמונה (מומלץ!)** — קלוד ישתמש בזה כדי לשלב "
-                    "את כל המוצרים/הרכיבים נכון בסרטון אחד (@Image 1, @Image 2...)."
+                    "🏷 **Role for each image (recommended!)** — Claude will use this to combine "
+                    "all the products/components correctly in one video (@Image 1, @Image 2...)."
                 )
                 image_roles = []
                 role_cols = st.columns(min(len(image_paths), 3))
@@ -214,7 +214,7 @@ if not IS_EXPRESS:
                         role = st.text_input(
                             f"@Image {idx+1}",
                             key=f"img_role_{idx}",
-                            placeholder="למשל: בקבוק - חזית / כף מדידה / האריזה מאחור",
+                            placeholder="e.g.: bottle - front / measuring scoop / packaging from behind",
                         )
                         image_roles.append(role.strip())
                 st.session_state["image_roles"] = image_roles
@@ -225,57 +225,57 @@ if not IS_EXPRESS:
         sub_a, sub_b = st.columns(2)
         with sub_a:
             total_videos = st.selectbox(
-                "כמה וידאו ליצור?",
+                "How many videos to create?",
                 [1, 3, 5, 10, 20, 50, 100, 200],
                 index=2,
-                help="התפלגות אוטומטית: 1=Product Review, 5=מגוון פורמטים, 100+=כל 23 הפורמטים",
+                help="Automatic distribution: 1=Product Review, 5=a mix of formats, 100+=all 23 formats",
             )
             default_duration = st.selectbox(
-                "משך ברירת מחדל (שניות)",
+                "Default duration (seconds)",
                 [5, 8, 10, 15, 20, 25, 30],
                 index=3,
                 format_func=lambda x: f"{x}s" + (" (×2 chunks)" if x > 15 else ""),
-                help="≤15s = generation בודד. 20-30s = שני chunks (opener+continuation) שמודבקים אוטומטית עם ffmpeg.",
+                help="≤15s = a single generation. 20-30s = two chunks (opener+continuation) stitched automatically with ffmpeg.",
             )
             duration_policy = st.radio(
-                "מדיניות משך",
-                ["Strict — תמיד המשך שלי", "Flexible — מותר לקלוד להציע אחרת לפי הפורמט/המחקר"],
+                "Duration policy",
+                ["Strict — always use my duration", "Flexible — Claude may suggest otherwise based on the format/research"],
                 index=1,
-                help="Strict: כל הוידאו יהיו במשך שבחרת. Flexible: אם המחקר ממליץ על 25s ל-Storytime, Claude יכתוב 25s ונייצר 2 chunks."
+                help="Strict: all videos use the duration you picked. Flexible: if the research recommends 25s for a Storytime, Claude writes 25s and we generate 2 chunks."
             )
             max_duration = st.selectbox(
-                "מקסימום מותר (Flexible mode)",
+                "Maximum allowed (Flexible mode)",
                 [15, 20, 25, 30],
                 index=3,
-                help="ב-Flexible — קלוד יכול להגיע עד לסף הזה. מעל 15s = multi-chunk."
+                help="In Flexible mode — Claude can go up to this cap. Over 15s = multi-chunk."
             )
             audience = st.selectbox(
-                "קהל יעד",
+                "Target audience",
                 ["American", "Israeli", "Pan-Arab / MENA", "Slavic / CIS",
                  "East Asian", "Latin American", "Mixed international"],
                 index=0,
-                help="דורס את הזיהוי האוטומטי של Gemini. השפעה: heritage של הדמויות, סביבה (American kitchen/gym/etc.), accent.",
+                help="Overrides Gemini's automatic detection. Affects: character heritage, setting (American kitchen/gym/etc.), accent.",
             )
         with sub_b:
-            campaign_name = st.text_input("שם קמפיין (אופציונלי)", placeholder="auto-generated")
-            date_range = st.selectbox("טווח תאריכים", ["30 days", "60 days", "90 days", "no dates"])
-            brand_input = st.text_input("שם המותג (אופציונלי, דורס את הזיהוי)", placeholder="auto-detected from packaging")
+            campaign_name = st.text_input("Campaign name (optional)", placeholder="auto-generated")
+            date_range = st.selectbox("Date range", ["30 days", "60 days", "90 days", "no dates"])
+            brand_input = st.text_input("Brand name (optional, overrides detection)", placeholder="auto-detected from packaging")
 
     # Notes — free-form context that affects all 3 stages
-    st.markdown("**💬 הערות חופשיות (אופציונלי) — מועבר לכל שלב**")
+    st.markdown("**💬 Free-form notes (optional) — passed to every stage**")
     user_notes = st.text_area(
-        "כל מידע נוסף שיעזור לקלוד לדייק את הקמפיין",
+        "Any extra info that helps Claude fine-tune the campaign",
         height=120,
         placeholder=(
-            "לדוגמה:\n"
-            "- קהל יעד מדויק: נשים 40-60 עם כאבי גב/רגליים\n"
-            "- המוצר מומלץ ע\"י אורתופדים, לא רק כאב כללי\n"
-            "- אנחנו מוכרים ב-Amazon US בעיקר, פחות ב-DTC\n"
-            "- להימנע מטענות רפואיות (FDA compliance)\n"
-            "- הנקודה הכי חזקה: הקלה מורגשת תוך 3 ימים\n"
-            "- אסור להזכיר מתחרים\n"
+            "For example:\n"
+            "- Exact target audience: women 40-60 with back/leg pain\n"
+            "- The product is recommended by orthopedists, not just for general pain\n"
+            "- We sell mainly on Amazon US, less DTC\n"
+            "- Avoid medical claims (FDA compliance)\n"
+            "- Strongest selling point: noticeable relief within 3 days\n"
+            "- Never mention competitors\n"
         ),
-        help="הטקסט הזה יישלח לקלוד בכל שלב — Stage 1 (brief), Stage 2 (plan), Stage 3 (prompts). פרטים יותר → דיוק יותר.",
+        help="This text is sent to Claude at every stage — Stage 1 (brief), Stage 2 (plan), Stage 3 (prompts). More detail → more accuracy.",
         label_visibility="collapsed",
     )
 
@@ -283,7 +283,7 @@ if not IS_EXPRESS:
     # ════════════════════════════════════════════════════════════
     # STAGE 1 — Research
     # ════════════════════════════════════════════════════════════
-    st.header("2️⃣ שלב 1: מחקר טרנדים + ניתוח מוצר")
+    st.header("2️⃣ Stage 1: Trend research + product analysis")
 
     # LLM is available if Chrome+CDP is up locally OR the Anthropic API key is set (cloud).
     try:
@@ -292,9 +292,9 @@ if not IS_EXPRESS:
     except Exception:
         llm_ok = chrome_ok
     s1_disabled = not st.session_state.get("image_path") or not llm_ok or not GEMINI_API_KEY or not TAVILY_API_KEY
-    if st.button("🔍 הרץ Stage 1 — Research", type="primary", disabled=s1_disabled,
-                  help="חייב: תמונה + (Chrome או Anthropic API) + Gemini + Tavily" if s1_disabled else None):
-        with st.status("🔍 Stage 1 בריצה...", expanded=True) as s:
+    if st.button("🔍 Run Stage 1 — Research", type="primary", disabled=s1_disabled,
+                  help="Requires: an image + (Chrome or Anthropic API) + Gemini + Tavily" if s1_disabled else None):
+        with st.status("🔍 Stage 1 running...", expanded=True) as s:
             try:
                 result = stage1_runner.run_stage1(
                     image_path=Path(st.session_state["image_path"]),
@@ -309,7 +309,7 @@ if not IS_EXPRESS:
                     result["product"]["brand_name_visible"] = brand_input.strip()
                 st.session_state["stage1"] = result
                 # Auto-trigger Smart Pick now that we have research data
-                s.write("🤖 קלוד בוחר פורמטים אופטימליים מהמחקר (אוטומטית)...")
+                s.write("🤖 Claude is picking optimal formats from the research (automatically)...")
                 try:
                     smart_split = stage1_runner.recommend_formats_from_research(
                         stage1_result=result,
@@ -319,10 +319,10 @@ if not IS_EXPRESS:
                         log=lambda m: s.write(m),
                     )
                     st.session_state["smart_pick"] = smart_split
-                    s.write(f"✓ Smart Pick: {len(smart_split)} פורמטים נבחרו לפי המחקר")
+                    s.write(f"✓ Smart Pick: {len(smart_split)} formats chosen based on the research")
                 except Exception as sp_e:
-                    s.write(f"⚠ Smart Pick נכשל ({sp_e}) — נסה ידנית אחרי שלב 1")
-                s.update(label="✅ Stage 1 + Smart Pick הושלמו", state="complete", expanded=False)
+                    s.write(f"⚠ Smart Pick failed ({sp_e}) — try manually after Stage 1")
+                s.update(label="✅ Stage 1 + Smart Pick completed", state="complete", expanded=False)
             except Exception as e:
                 s.update(label=f"❌ {e}", state="error", expanded=True)
 
@@ -331,51 +331,51 @@ if not IS_EXPRESS:
         with st.expander("📦 Product Profile (auto-detected)", expanded=False):
             # Editable product JSON
             prod_text = st.text_area(
-                "ערוך פרטי מוצר (JSON)",
+                "Edit product details (JSON)",
                 value=json.dumps(s1["product"], indent=2, ensure_ascii=False),
                 height=260,
                 key="product_edit",
             )
-            if st.button("💾 שמור פרטי מוצר", key="save_product"):
+            if st.button("💾 Save product details", key="save_product"):
                 try:
                     s1["product"] = json.loads(prod_text)
                     st.session_state["stage1"] = s1
-                    st.success("✓ נשמר")
+                    st.success("✓ Saved")
                 except Exception as e:
-                    st.error(f"JSON לא תקין: {e}")
+                    st.error(f"Invalid JSON: {e}")
 
-        with st.expander("📄 Viral Content Brief — ניתן לעריכה ידנית", expanded=True):
+        with st.expander("📄 Viral Content Brief — manually editable", expanded=True):
             brief_edited = st.text_area(
-                "ערוך את ה-Brief — כל מה שתשנה כאן ישפיע על שלב 2",
+                "Edit the Brief — anything you change here affects Stage 2",
                 value=s1["viral_brief"],
                 height=400,
                 key="brief_edit",
                 label_visibility="collapsed",
             )
-            if st.button("💾 שמור Brief", key="save_brief"):
+            if st.button("💾 Save Brief", key="save_brief"):
                 s1["viral_brief"] = brief_edited
                 st.session_state["stage1"] = s1
-                st.success("✓ Brief נשמר. שלב 2 ישתמש בגרסה החדשה.")
+                st.success("✓ Brief saved. Stage 2 will use the new version.")
 
     # Skip-stage-1 expander: paste your own brief
-    with st.expander("✏️ אופציה: דלג על Stage 1 — כתוב Brief משלך", expanded=False):
-        st.caption("אם יש לך Brief מוכן ואתה לא צריך מחקר — הדבק כאן והמשך לשלב 2.")
+    with st.expander("✏️ Option: skip Stage 1 — write your own Brief", expanded=False):
+        st.caption("If you already have a Brief and don't need research — paste it here and continue to Stage 2.")
         manual_brief = st.text_area(
-            "Brief ידני",
+            "Manual Brief",
             height=300,
-            placeholder="פסקה 1: למה הבעיה הזאת בוערת לקהל...\nפסקה 2: הזוויות הוויראליות...\nפסקה 3: יסודות יצירתיים...",
+            placeholder="Paragraph 1: why this problem is burning for the audience...\nParagraph 2: the viral angles...\nParagraph 3: creative foundations...",
             key="manual_brief_input",
             label_visibility="collapsed",
         )
         manual_product_json = st.text_area(
-            "פרטי מוצר ידניים (JSON) — אופציונלי, אם לא מילאת קלוד לא יידע מה זה",
+            "Manual product details (JSON) — optional; if left empty Claude won't know what the product is",
             value='{\n  "category": "",\n  "subtype": "",\n  "skus_visible": [],\n  "brand_name_visible": "",\n  "packaging_colors": [],\n  "packaging_style": "",\n  "region_cue": "global",\n  "niche_keyword": "",\n  "audience_default": "American"\n}',
             height=240,
             key="manual_product_input",
         )
-        if st.button("✅ השתמש בקלט הידני (דלג על Stage 1)", key="use_manual_brief"):
+        if st.button("✅ Use the manual input (skip Stage 1)", key="use_manual_brief"):
             if not manual_brief.strip():
-                st.error("צריך לכתוב Brief")
+                st.error("You need to write a Brief")
             else:
                 try:
                     manual_product = json.loads(manual_product_json) if manual_product_json.strip() else {}
@@ -384,17 +384,17 @@ if not IS_EXPRESS:
                         "viral_brief": manual_brief.strip(),
                         "research": {"manual": True},
                     }
-                    st.success("✓ Stage 1 ידני נשמר. תוכל להמשיך לשלב 2.")
+                    st.success("✓ Manual Stage 1 saved. You can continue to Stage 2.")
                     st.rerun()
                 except Exception as e:
-                    st.error(f"JSON של פרטי מוצר לא תקין: {e}")
+                    st.error(f"Product details JSON is invalid: {e}")
 
 
     # ════════════════════════════════════════════════════════════
     # Format selection — AFTER Stage 1, auto-picked by research
     # ════════════════════════════════════════════════════════════
     st.markdown("---")
-    with st.expander(f"🎯 בחירת פורמטים ({total_videos} וידאו) — לראות / לעקוף את הבחירה האוטומטית", expanded=False):
+    with st.expander(f"🎯 Format selection ({total_videos} videos) — view / override the automatic pick", expanded=False):
         # Compute the auto-picked formats
         auto_split = compute_format_split(total_videos, list(ALL_FORMATS.keys()))
         auto_picked = sorted([f for f, c in auto_split.items() if c > 0], key=lambda f: -auto_split.get(f, 0))
@@ -402,13 +402,13 @@ if not IS_EXPRESS:
         # SMART PICK button — uses research from Stage 1 to let Claude decide
         smart_disabled = not st.session_state.get("stage1") or not llm_ok
         smart_help = (
-            "חייב להריץ קודם Stage 1 (כדי שיהיה לקלוד מחקר לעבוד איתו) + Chrome פעיל"
+            "You must run Stage 1 first (so Claude has research to work with) + an active Chrome"
             if smart_disabled else
-            "קלוד יבחר פורמטים מבוססי המחקר והמוצר הספציפי — לא priority גנרי"
+            "Claude will pick formats based on the research and the specific product — not a generic priority"
         )
-        if st.button("🤖 Smart Pick — תן לקלוד לבחור לפי המחקר",
+        if st.button("🤖 Smart Pick — let Claude choose based on the research",
                       disabled=smart_disabled, help=smart_help, use_container_width=True):
-            with st.spinner("קלוד בוחר פורמטים אופטימליים מהמחקר..."):
+            with st.spinner("Claude is picking optimal formats from the research..."):
                 try:
                     smart_split = stage1_runner.recommend_formats_from_research(
                         stage1_result=st.session_state["stage1"],
@@ -418,23 +418,23 @@ if not IS_EXPRESS:
                         log=lambda m: st.write(m),
                     )
                     st.session_state["smart_pick"] = smart_split
-                    st.success(f"✅ Smart pick: {sum(smart_split.values())} וידאו, {len(smart_split)} פורמטים")
+                    st.success(f"✅ Smart pick: {sum(smart_split.values())} videos, {len(smart_split)} formats")
                     st.rerun()
                 except Exception as e:
-                    st.error(f"❌ Smart Pick נכשל: {e}")
+                    st.error(f"❌ Smart Pick failed: {e}")
 
         # Decide which split to display as default in the multiselect
         if st.session_state.get("smart_pick"):
             smart = st.session_state["smart_pick"]
             default_pool = sorted(smart.keys(), key=lambda f: -smart.get(f, 0))
-            st.markdown(f"**Smart Pick מ-Claude (מבוסס מחקר):** {len(default_pool)} פורמטים")
+            st.markdown(f"**Smart Pick from Claude (research-based):** {len(default_pool)} formats")
             for fn, cnt in smart.items():
                 st.caption(f"  - Format #{fn} {ALL_FORMATS[fn][2]}: ×{cnt}")
             st.markdown("")
-            st.markdown(f"**אפשר לערוך** ({len(auto_picked)} ב-priority הגנרי, או Smart Pick למעלה):")
+            st.markdown(f"**You can edit** ({len(auto_picked)} in the generic priority, or Smart Pick above):")
             default_selection = default_pool
         else:
-            st.markdown(f"**ברירת מחדל אוטומטית** ({len(auto_picked)} פורמטים נבחרו לפי priority):")
+            st.markdown(f"**Automatic default** ({len(auto_picked)} formats chosen by priority):")
             default_selection = auto_picked.copy()
     
 
@@ -448,33 +448,33 @@ if not IS_EXPRESS:
         all_format_options = list(ALL_FORMATS.keys())
 
         selected_formats = st.multiselect(
-            "פורמטים לכלול בקמפיין",
+            "Formats to include in the campaign",
             options=all_format_options,
             default=default_selection,
             format_func=fmt_label,
-            help="ברירת מחדל = הבחירה האוטומטית. הוסף/הסר כרצונך. אם תבחר פחות פורמטים ממספר הוידאו, חלקם יקבלו יותר מאחד."
+            help="Default = the automatic pick. Add/remove as you like. If you pick fewer formats than videos, some formats get more than one."
         )
 
         if selected_formats:
             manual_split = compute_format_split(total_videos, selected_formats)
             active_split = {k: v for k, v in manual_split.items() if v > 0}
-            st.info(f"💡 תקבל **{sum(active_split.values())} וידאו ב-{len(active_split)} פורמטים**: " +
+            st.info(f"💡 You will get **{sum(active_split.values())} videos in {len(active_split)} formats**: " +
                     ", ".join(f"{ALL_FORMATS[f][2]} ×{c}" for f, c in active_split.items()))
             # Save the selection so Stage 2 uses it
             st.session_state["selected_formats"] = selected_formats
         else:
-            st.warning("⚠️ לא נבחרו פורמטים — Stage 1 יתבסס על הברירת מחדל האוטומטית")
+            st.warning("⚠️ No formats selected — Stage 1 will rely on the automatic default")
             st.session_state["selected_formats"] = None
 
 
     # ════════════════════════════════════════════════════════════
     # STAGE 2 — Plan
     # ════════════════════════════════════════════════════════════
-    st.header("3️⃣ שלב 2: תכנית קמפיין")
+    st.header("3️⃣ Stage 2: Campaign plan")
 
     s2_disabled = not st.session_state.get("stage1") or not llm_ok
-    if st.button("🗂 הרץ Stage 2 — Plan", type="primary", disabled=s2_disabled):
-        with st.status("🗂 Stage 2 בריצה...", expanded=True) as s:
+    if st.button("🗂 Run Stage 2 — Plan", type="primary", disabled=s2_disabled):
+        with st.status("🗂 Stage 2 running...", expanded=True) as s:
             try:
                 s1 = st.session_state["stage1"]
                 days = int(date_range.split()[0]) if "day" in date_range else 30
@@ -507,7 +507,7 @@ if not IS_EXPRESS:
                     log=lambda m: s.write(m),
                 )
                 st.session_state["stage2"] = plan
-                s.update(label=f"✅ Stage 2 הושלם — {len(plan.get('videos', []))} שורות בתכנית",
+                s.update(label=f"✅ Stage 2 completed — {len(plan.get('videos', []))} rows in the plan",
                          state="complete", expanded=False)
             except Exception as e:
                 s.update(label=f"❌ {e}", state="error", expanded=True)
@@ -539,7 +539,7 @@ if not IS_EXPRESS:
                 st.dataframe(preview, use_container_width=True)
 
         # Editable plan JSON
-        with st.expander("✏️ ערוך תכנית ידנית (JSON) — שינויים ישפיעו על שלב 3", expanded=False):
+        with st.expander("✏️ Edit the plan manually (JSON) — changes affect Stage 3", expanded=False):
             plan_text = st.text_area(
                 "Plan JSON",
                 value=json.dumps(plan, indent=2, ensure_ascii=False),
@@ -547,55 +547,55 @@ if not IS_EXPRESS:
                 key="plan_edit",
                 label_visibility="collapsed",
             )
-            if st.button("💾 שמור תכנית", key="save_plan"):
+            if st.button("💾 Save plan", key="save_plan"):
                 try:
                     new_plan = json.loads(plan_text)
                     st.session_state["stage2"] = new_plan
-                    st.success(f"✓ תכנית נשמרה — {len(new_plan.get('videos', []))} וידאו")
+                    st.success(f"✓ Plan saved — {len(new_plan.get('videos', []))} videos")
                     st.rerun()
                 except Exception as e:
-                    st.error(f"JSON לא תקין: {e}")
+                    st.error(f"Invalid JSON: {e}")
 
     # Skip-stage-2 expander
-    with st.expander("✏️ אופציה: דלג על Stage 2 — כתוב תכנית משלך", expanded=False):
-        st.caption("אם יש לך תכנית מוכנה (JSON עם השדה videos) — הדבק כאן.")
+    with st.expander("✏️ Option: skip Stage 2 — write your own plan", expanded=False):
+        st.caption("If you already have a plan (JSON with a videos field) — paste it here.")
         manual_plan = st.text_area(
-            "תכנית ידנית",
+            "Manual plan",
             height=320,
             placeholder='{\n  "campaign_name": "...",\n  "videos": [\n    {"id": 1, "format": 1, "family": "UGC", "format_name": "...", "duration_seconds": 15, "setting": "...", "persona": "...", "hook_line": "..."}\n  ]\n}',
             key="manual_plan_input",
             label_visibility="collapsed",
         )
-        if st.button("✅ השתמש בתכנית הידנית (דלג על Stage 2)", key="use_manual_plan"):
+        if st.button("✅ Use the manual plan (skip Stage 2)", key="use_manual_plan"):
             if not manual_plan.strip():
-                st.error("צריך לכתוב תכנית")
+                st.error("You need to write a plan")
             else:
                 try:
                     new_plan = json.loads(manual_plan)
                     if "videos" not in new_plan:
-                        st.error("חייב להיות שדה 'videos'")
+                        st.error("A 'videos' field is required")
                     else:
                         st.session_state["stage2"] = new_plan
-                        st.success(f"✓ תכנית ידנית נשמרה — {len(new_plan.get('videos', []))} וידאו")
+                        st.success(f"✓ Manual plan saved — {len(new_plan.get('videos', []))} videos")
                         st.rerun()
                 except Exception as e:
-                    st.error(f"JSON לא תקין: {e}")
+                    st.error(f"Invalid JSON: {e}")
 
 
     # ════════════════════════════════════════════════════════════
     # STAGE 3 — Prompts
     # ════════════════════════════════════════════════════════════
-    st.header("4️⃣ שלב 3: כתיבת פרומטים לכל וידאו")
+    st.header("4️⃣ Stage 3: Writing prompts for each video")
 
     s3_disabled = not st.session_state.get("stage2") or not llm_ok
     col_s3a, col_s3b = st.columns([1, 3])
     with col_s3a:
-        s3_limit = st.number_input("הגבל למספר וידאו ראשונים (0=הכל)",
+        s3_limit = st.number_input("Limit to the first N videos (0=all)",
                                     min_value=0, max_value=200, value=0, step=1,
-                                    help="לבדיקה: נסה רק 2-3 לפני שמייצרים הכל")
+                                    help="For testing: try just 2-3 before generating everything")
     with col_s3b:
-        if st.button("✍️ הרץ Stage 3 — Prompts", type="primary", disabled=s3_disabled, use_container_width=True):
-            with st.status("✍️ Stage 3 בריצה (זמן: ~30s לכל וידאו)...", expanded=True) as s:
+        if st.button("✍️ Run Stage 3 — Prompts", type="primary", disabled=s3_disabled, use_container_width=True):
+            with st.status("✍️ Stage 3 running (time: ~30s per video)...", expanded=True) as s:
                 try:
                     plan = dict(st.session_state["stage2"])  # mutable copy
                     product = st.session_state["stage1"]["product"]
@@ -603,7 +603,7 @@ if not IS_EXPRESS:
 
                     progress_bar = s.progress(0.0)
                     def progress_cb(i, total):
-                        progress_bar.progress(i / total, text=f"וידאו {i}/{total}")
+                        progress_bar.progress(i / total, text=f"Video {i}/{total}")
 
                     plan_done = stage3_runner.run_stage3(
                         plan=plan,
@@ -617,7 +617,7 @@ if not IS_EXPRESS:
                         progress=progress_cb,
                     )
                     st.session_state["stage3"] = plan_done
-                    s.update(label="✅ Stage 3 הושלם", state="complete", expanded=False)
+                    s.update(label="✅ Stage 3 completed", state="complete", expanded=False)
                 except Exception as e:
                     s.update(label=f"❌ {e}", state="error", expanded=True)
 
@@ -634,7 +634,7 @@ if not IS_EXPRESS:
                 mp = plan["_files"].get("prompts_md", "")
                 st.markdown(f"📝 [Prompts MD]({mp})")
 
-        st.caption("💡 כל פרומט הוא טקסט לעריכה. שינויים נשמרים אוטומטית ויופעלו כשתלחץ על 'ייצור הוידאו' בשלב 4.")
+        st.caption("💡 Every prompt is editable text. Changes are saved automatically and take effect when you click generate in Stage 4.")
 
         for idx, v in enumerate(plan.get("videos", [])):
             if not v.get("prompt"):
@@ -652,16 +652,16 @@ if not IS_EXPRESS:
                 if edited != v["prompt"]:
                     plan["videos"][idx]["prompt"] = edited
                     st.session_state["stage3"] = plan
-                    st.caption(f"✓ נשמר ב-זיכרון (וידאו {vid})")
+                    st.caption(f"✓ Saved in memory (video {vid})")
 
     # Skip-stage-3 expander — accepts plain text (preferred) or JSON
-    with st.expander("✏️ אופציה: דלג על Stage 3 — הדבק פרומטים משלך", expanded=False):
+    with st.expander("✏️ Option: skip Stage 3 — paste your own prompts", expanded=False):
         st.caption(
-            "**הדרך הקלה:** הדבק כל פרומט בנפרד, מופרדים על ידי שורה עם `===`. "
-            "אני אצור את הקובץ פנימית. **דרך מתקדמת:** הדבק JSON עם `videos`."
+            "**The easy way:** paste each prompt separately, separated by a line with `===`. "
+            "The file is created internally. **Advanced way:** paste JSON with `videos`."
         )
         manual_stage3 = st.text_area(
-            "פרומטים — מופרדים על ידי === (או JSON)",
+            "Prompts — separated by === (or JSON)",
             height=320,
             placeholder=(
                 "Prompt #1 here — UGC video, 15 seconds...\n"
@@ -674,14 +674,14 @@ if not IS_EXPRESS:
             label_visibility="collapsed",
         )
         manual_dur = st.number_input(
-            "משך ברירת מחדל לכל וידאו (שניות)",
+            "Default duration per video (seconds)",
             min_value=5, max_value=30, value=int(default_duration), step=1,
             key="manual_stage3_dur",
         )
-        if st.button("✅ השתמש בפרומטים הידניים (דלג על Stage 3)", key="use_manual_stage3"):
+        if st.button("✅ Use the manual prompts (skip Stage 3)", key="use_manual_stage3"):
             text = manual_stage3.strip()
             if not text:
-                st.error("צריך לכתוב פרומטים")
+                st.error("You need to write prompts")
             else:
                 # Try JSON first (advanced); if it fails, split by === (easy)
                 new_plan = None
@@ -715,21 +715,21 @@ if not IS_EXPRESS:
 
                 videos_with_prompts = [v for v in new_plan.get("videos", []) if v.get("prompt")]
                 if not videos_with_prompts:
-                    st.error("לא מצאתי אף פרומט. ודא שאתה מפריד עם === בין פרומטים, או מדביק JSON תקין.")
+                    st.error("No prompts found. Make sure prompts are separated with ===, or paste valid JSON.")
                 else:
                     st.session_state["stage3"] = new_plan
                     # Stage 2 dummy so Stage 4 button works
                     if not st.session_state.get("stage2"):
                         st.session_state["stage2"] = new_plan
-                    st.success(f"✓ נשמרו {len(videos_with_prompts)} פרומטים. גלול ל-Stage 4 לייצור.")
+                    st.success(f"✓ Saved {len(videos_with_prompts)} prompts. Scroll to Stage 4 to generate.")
                     st.rerun()
 
 
     # ════════════════════════════════════════════════════════════
     # STAGE 4 — Render Videos via BytePlus
     # ════════════════════════════════════════════════════════════
-st.header("5️⃣ שלב 4: ייצור הוידאו (אופציונלי)")
-st.caption("שולח את הפרומטים שנכתבו לסידנס, מקבל MP4. ניתן ליצור הכל או רק חלק.")
+st.header("5️⃣ Stage 4: Video generation (optional)")
+st.caption("Sends the written prompts to Seedance and gets MP4s back. You can generate all of them or just some.")
 
 # Reference audio (music / voiceover) — shared by Express + Full pipeline.
 import ref_audio_helper as _ref_audio_mod
@@ -744,12 +744,12 @@ try:
     _pending = _tq_pending(min_age_seconds=30)
     if _pending:
         st.warning(
-            f"⚠ נמצאו **{len(_pending)} משימות שיש לאסוף** "
-            f"מסשן קודם שלא הורדנו (כנראה הסשן נפל באמצע). "
-            f"שילמת עליהן — אפשר לאסוף אותן בלי לשלם שוב."
+            f"⚠ Found **{len(_pending)} tasks to collect** "
+            f"from a previous session that were never downloaded (the session probably crashed mid-run). "
+            f"You already paid for them — you can collect them without paying again."
         )
-        if st.button(f"🔄 אסוף עכשיו את {len(_pending)} המשימות", key="resume_pending_btn"):
-            with st.status("מאסף...", expanded=True) as _resume_status:
+        if st.button(f"🔄 Collect the {len(_pending)} tasks now", key="resume_pending_btn"):
+            with st.status("Collecting...", expanded=True) as _resume_status:
                 for _t in _pending:
                     _tid = _t["task_id"]
                     _vid = _t.get("video_id", "?")
@@ -767,7 +767,7 @@ try:
                         _resume_status.write(f"  ✓ {_cp.name}")
                     except Exception as _e:
                         _resume_status.write(f"  ❌ {_tid}: {_e}")
-                _resume_status.update(label="✓ סיום", state="complete")
+                _resume_status.update(label="✓ Done", state="complete")
             st.rerun()
 except Exception:
     pass
@@ -783,23 +783,23 @@ if "video_results" not in st.session_state:
 
 if videos_with_prompts:
     # Show per-video selector
-    st.markdown(f"**{len(videos_with_prompts)} פרומטים מוכנים** — בחר אילו לייצר:")
+    st.markdown(f"**{len(videos_with_prompts)} prompts ready** — pick which ones to generate:")
 
     # Quick action buttons
     qa1, qa2, qa3 = st.columns([1, 1, 1])
     with qa1:
-        if st.button("✅ סמן הכל", use_container_width=True, key="select_all_btn"):
+        if st.button("✅ Select all", use_container_width=True, key="select_all_btn"):
             for v in videos_with_prompts:
                 st.session_state[f"sel_{v['id']}"] = True
             st.rerun()
     with qa2:
-        if st.button("⬜ נקה הכל", use_container_width=True, key="clear_all_btn"):
+        if st.button("⬜ Clear all", use_container_width=True, key="clear_all_btn"):
             for v in videos_with_prompts:
                 st.session_state[f"sel_{v['id']}"] = False
             st.rerun()
     with qa3:
-        if st.button("🔁 רק נכשלים+חסרים", use_container_width=True, key="select_pending_btn",
-                      help="סמן רק וידאו שעוד לא נוצרו"):
+        if st.button("🔁 Only failed+missing", use_container_width=True, key="select_pending_btn",
+                      help="Select only videos that have not been generated yet"):
             for v in videos_with_prompts:
                 vid_id = v["id"]
                 already_done = vid_id in st.session_state["video_results"]
@@ -826,10 +826,10 @@ if videos_with_prompts:
             selected_ids.append(vid_id)
 
     n_selected = len(selected_ids)
-    st.info(f"💡 {n_selected} וידאו מסומנים לייצור (מתוך {len(videos_with_prompts)}). " +
-             f"עלות: {n_selected} generations." if n_selected else "⚠️ לא נבחר וידאו לייצור")
+    st.info(f"💡 {n_selected} videos selected for generation (out of {len(videos_with_prompts)}). " +
+             f"Cost: {n_selected} generations." if n_selected else "⚠️ No video selected for generation")
 
-    if st.button(f"🎬 צור {n_selected} וידאו מסומנים",
+    if st.button(f"🎬 Generate {n_selected} selected videos",
                   type="primary",
                   disabled=s4_disabled or n_selected == 0,
                   use_container_width=True,
@@ -838,13 +838,13 @@ if videos_with_prompts:
             video_outputs = []
             image_path = Path(st.session_state.get("image_path", ""))
 
-            with st.status(f"🎬 מייצר {len(todo)} וידאו ב-BytePlus...", expanded=True) as s4_status:
+            with st.status(f"🎬 Generating {len(todo)} videos on BytePlus...", expanded=True) as s4_status:
                 try:
                     img_paths = [Path(ip) for ip in (st.session_state.get("image_paths") or []) if str(ip).strip()]
                     if img_paths:
-                        s4_status.write(f"📤 מעלה {len(img_paths)} תמונה/ות ל-imgbb (פעם אחת)...")
+                        s4_status.write(f"📤 Uploading {len(img_paths)} image(s) to imgbb (once)...")
                     else:
-                        s4_status.write("ℹ אין תמונות מוצר — ממשיך עם prompt + reference video בלבד.")
+                        s4_status.write("ℹ No product images — continuing with prompt + reference video only.")
                     base_image_urls = []
                     for idx, ip in enumerate(img_paths, 1):
                         url = upload_image(ip)
@@ -855,7 +855,7 @@ if videos_with_prompts:
                     # Reference audio (Audio Studio voice + uploaded MP3s) — once per batch
                     ref_audio_urls = get_ref_audio_urls(log=s4_status.write)
                     if ref_audio_urls:
-                        s4_status.write(f"🎵 {len(ref_audio_urls)} רפרנס אודיו יצורפו (@Audio 1..{len(ref_audio_urls)})")
+                        s4_status.write(f"🎵 {len(ref_audio_urls)} reference audio files will be attached (@Audio 1..{len(ref_audio_urls)})")
 
                     for vi, video in enumerate(todo, 1):
                         s4_status.write(f"\n━━━ Video {vi}/{len(todo)}: {video['id']} ({video.get('format_name')}) ━━━")
@@ -881,7 +881,7 @@ if videos_with_prompts:
                             multi_chunk = len(chunk_durations) > 1
 
                             if multi_chunk and not is_ffmpeg_available():
-                                s4_status.write(f"  ⚠ {video['id']} צריך ffmpeg ({duration}s>15) — מדלג")
+                                s4_status.write(f"  ⚠ {video['id']} needs ffmpeg ({duration}s>15) — skipping")
                                 continue
 
                             chunk_videos = []
@@ -897,14 +897,14 @@ if videos_with_prompts:
                                     chunk_audio_refs = list(ref_audio_urls)
                                     chunk_prompt = video["prompt"]
                                 else:
-                                    s4_status.write("  🔗 מחלץ פריים אחרון...")
+                                    s4_status.write("  🔗 Extracting last frame...")
                                     last_frame_path = OUTPUTS_DIR / "videos" / f"_lf_{video['id']}_{ts}_c{ci-1}.jpg"
                                     extract_last_frame(chunk_videos[-1], last_frame_path)
 
-                                    s4_status.write("  📤 מעלה Video הקודם ל-catbox.moe...")
+                                    s4_status.write("  📤 Uploading the previous video to catbox.moe...")
                                     vid_url = upload_video(chunk_videos[-1])
 
-                                    s4_status.write("  ✍️ קלוד כותב continuation...")
+                                    s4_status.write("  ✍️ Claude is writing a continuation...")
                                     continuation = pg.generate_continuation_prompt(
                                         opener_prompt=chunk_prompts_used[-1],
                                         brief=video.get("scene_summary", ""),
@@ -928,7 +928,7 @@ if videos_with_prompts:
                                 last_task_id = None
                                 for attempt in range(2):
                                     attempt_label = "" if attempt == 0 else f" (retry {attempt})"
-                                    s4_status.write(f"  📨 שולח chunk {ci}{attempt_label} ל-Seedance ({resolution}, {ratio}, {chunk_dur}s)...")
+                                    s4_status.write(f"  📨 Sending chunk {ci}{attempt_label} to Seedance ({resolution}, {ratio}, {chunk_dur}s)...")
                                     task_id = submit_task(
                                         prompt=chunk_prompt,
                                         image_urls=chunk_image_urls,
@@ -950,14 +950,14 @@ if videos_with_prompts:
                                     except Exception as _te:
                                         s4_status.write(f"    ⚠ task_queue.add_task failed: {_te}")
                                     s4_status.write(f"    task_id: {task_id}")
-                                    s4_status.write("  ⏳ ממתין (עד 15 דקות)...")
+                                    s4_status.write("  ⏳ Waiting (up to 15 minutes)...")
                                     try:
                                         result = poll_task(task_id, log=s4_status.write)
                                         break  # success
                                     except TimeoutError as te:
                                         s4_status.write(f"  ⚠ timeout (attempt {attempt + 1}): {te}")
                                         if attempt == 0:
-                                            s4_status.write("  🔄 מנסה שוב פעם אחת...")
+                                            s4_status.write("  🔄 Retrying once...")
                                         else:
                                             raise
                                 if result is None:
@@ -977,7 +977,7 @@ if videos_with_prompts:
 
                             # Concat chunks if multi
                             if multi_chunk:
-                                s4_status.write("  🪡 מדביק chunks ל-MP4 אחד...")
+                                s4_status.write("  🪡 Stitching chunks into one MP4...")
                                 out_path = OUTPUTS_DIR / "videos" / f"{video['id']}_{ts}_FULL_{duration}s.mp4"
                                 concat_videos(chunk_videos, out_path)
                             else:
@@ -988,10 +988,10 @@ if videos_with_prompts:
                             # Save per-video to session_state so re-runs skip it
                             st.session_state["video_results"][video["id"]] = out_path
                         except Exception as ve:
-                            s4_status.write(f"  ❌ {video['id']} נכשל: {ve}")
+                            s4_status.write(f"  ❌ {video['id']} failed: {ve}")
 
                     s4_status.update(
-                        label=f"✅ Stage 4 הושלם — {len(video_outputs)}/{len(todo)} וידאו נוצרו",
+                        label=f"✅ Stage 4 completed — {len(video_outputs)}/{len(todo)} videos generated",
                         state="complete", expanded=False,
                     )
                     st.session_state["stage4"] = video_outputs
@@ -1004,8 +1004,8 @@ if videos_with_prompts:
 # ════════════════════════════════════════════════════════════
 if st.session_state.get("stage4"):
     st.markdown("---")
-    st.header("🎬 הוידאו שיצרת")
-    st.caption("לחץ ▶ לצפייה, או ⬇️ להוריד למחשב.")
+    st.header("🎬 Your generated videos")
+    st.caption("Click ▶ to watch, or ⬇️ to download to your computer.")
 
     _outputs = st.session_state["stage4"]
     # Each entry can be (id, path) tuple or dict — normalize
@@ -1032,17 +1032,17 @@ if st.session_state.get("stage4"):
             if _txt:
                 _zf.writestr("prompts.txt", _txt)
         st.download_button(
-            f"📦 הורד חבילת עריכה ל-CapCut ({len(_existing_vids)} וידאו + פרומפטים)",
+            f"📦 Download CapCut editing package ({len(_existing_vids)} videos + prompts)",
             _buf.getvalue(), file_name="capcut_package.zip", mime="application/zip",
             use_container_width=True, key="capcut_zip_btn",
         )
         st.caption(
-            "חלץ את ה-ZIP → ב-CapCut: New project → Import → בחר את כל הקבצים. "
-            "כל וידאו נכנס כקליפ נפרד לטיימליין, וה-prompts.txt עוזר לכתוביות."
+            "Extract the ZIP → in CapCut: New project → Import → select all the files. "
+            "Each video goes into the timeline as a separate clip, and prompts.txt helps with captions."
         )
 
     if not _normalized:
-        st.info("אין וידאו זמינים להצגה.")
+        st.info("No videos available to display.")
     else:
         _cols_per_row = 2
         for i in range(0, len(_normalized), _cols_per_row):
@@ -1053,12 +1053,12 @@ if st.session_state.get("stage4"):
                     _vid_id = _item.get("id", "?")
                     _path = Path(_item.get("path", ""))
                     if _path.exists():
-                        st.markdown(f"**וידאו #{_vid_id}** · {_path.name}")
+                        st.markdown(f"**Video #{_vid_id}** · {_path.name}")
                         with open(_path, "rb") as _f:
                             _bytes = _f.read()
                         st.video(_bytes)
                         st.download_button(
-                            label=f"⬇️ הורד וידאו #{_vid_id}",
+                            label=f"⬇️ Download video #{_vid_id}",
                             data=_bytes,
                             file_name=_path.name,
                             mime="video/mp4",
@@ -1068,25 +1068,25 @@ if st.session_state.get("stage4"):
                         _size_mb = len(_bytes) / 1024 / 1024
                         st.caption(f"{_size_mb:.1f} MB")
                     else:
-                        st.warning(f"וידאו #{_vid_id} לא נמצא בדיסק.")
+                        st.warning(f"Video #{_vid_id} not found on disk.")
 
 
 # ════════════════════════════════════════════════════════════
-# 📂 כל הוידאו על השרת — file browser + ZIP bulk download
+# 📂 All videos on the server — file browser + ZIP bulk download
 # ════════════════════════════════════════════════════════════
 # Even after a session reset, the user can grab any MP4 still sitting on the
 # Streamlit Cloud VM's disk. Lists all *.mp4 in outputs/videos/, newest first.
 st.markdown("---")
-with st.expander("📂 כל הוידאו ששמורים על השרת — גישה ישירה לקבצים", expanded=False):
+with st.expander("📂 All videos stored on the server — direct file access", expanded=False):
     st.caption(
-        "⚠ הקבצים נשמרים על Streamlit Cloud באופן זמני בלבד. "
-        "כשה-VM מאתחל (חידוש בנייה, חוסר פעילות ממושך) הם נמחקים. "
-        "**הורד אותם למחשב שלך כדי לשמור לטווח ארוך.**"
+        "⚠ Files are stored on Streamlit Cloud temporarily only. "
+        "When the VM restarts (rebuild, long inactivity) they are deleted. "
+        "**Download them to your computer for long-term storage.**"
     )
 
     _videos_dir = OUTPUTS_DIR / "videos"
     if not _videos_dir.exists():
-        st.info("עוד לא נוצרו וידאו. אחרי שתייצר ב-Stage 4, הם יופיעו כאן.")
+        st.info("No videos created yet. After you generate in Stage 4, they will appear here.")
     else:
         _all_mp4s = sorted(
             _videos_dir.glob("*.mp4"),
@@ -1094,19 +1094,19 @@ with st.expander("📂 כל הוידאו ששמורים על השרת — גיש
             reverse=True,
         )
         if not _all_mp4s:
-            st.info("התיקייה ריקה — עדיין לא נוצרו וידאו.")
+            st.info("The folder is empty — no videos created yet.")
         else:
             from datetime import datetime as _dt
             _total_size = sum(p.stat().st_size for p in _all_mp4s)
             st.success(
-                f"✓ {len(_all_mp4s)} קבצים על השרת · "
-                f"סה\"כ {_total_size / 1024 / 1024:.1f} MB"
+                f"✓ {len(_all_mp4s)} files on the server · "
+                f"total {_total_size / 1024 / 1024:.1f} MB"
             )
             st.info(
-                "💡 **שימו לב:** ההורדה הישירה של Streamlit נתקעת לפעמים לקבצים גדולים. "
-                "במקום זה, לחץ '📤 צור לינק קבוע' ליד כל וידאו — הוא יועלה לקטבוקס "
-                "(קישור ציבורי, יציב, יש לו CDN משלו), ותקבל לינק שתוכל לפתוח בכרטיסייה חדשה "
-                "ולהוריד ישירות מהדפדפן בלי בעיות."
+                "💡 **Note:** Streamlit's direct download sometimes stalls on large files. "
+                "Instead, click '📤 Create permanent link' next to each video — it is uploaded to catbox "
+                "(a public, stable link with its own CDN), and you get a link you can open in a new tab "
+                "and download directly from the browser with no issues."
             )
 
             # Cache uploaded URLs per file in session_state
@@ -1114,26 +1114,26 @@ with st.expander("📂 כל הוידאו ששמורים על השרת — גיש
 
             # ── Bulk upload all → returns a list of shareable links ──
             if st.button(
-                f"\U0001F4E4 צור לינקי הורדה לכל ה-{len(_all_mp4s)} הוידאו",
+                f"\U0001F4E4 Create download links for all {len(_all_mp4s)} videos",
                 type="primary",
                 use_container_width=True,
                 key="upload_all_btn",
-                help="מעלה כל וידאו לקטבוקס (קישור קבוע). ייקח כמה שניות לוידאו.",
+                help="Uploads each video to catbox (a permanent link). Takes a few seconds per video.",
             ):
-                _prog = st.progress(0.0, text="מעלה...")
+                _prog = st.progress(0.0, text="Uploading...")
                 for _i, _p in enumerate(_all_mp4s):
                     if str(_p) not in _url_cache:
                         try:
                             _url_cache[str(_p)] = upload_video(_p)
                         except Exception as _e:
                             st.warning(f"\u274C {_p.name}: {_e}")
-                    _prog.progress((_i + 1) / len(_all_mp4s), text=f"מעלה {_i+1}/{len(_all_mp4s)}: {_p.name}")
+                    _prog.progress((_i + 1) / len(_all_mp4s), text=f"Uploading {_i+1}/{len(_all_mp4s)}: {_p.name}")
                 _prog.empty()
-                st.success(f"\u2713 הועלו {len(_url_cache)} וידאו. הקישורים מופיעים למטה.")
+                st.success(f"\u2713 Uploaded {len(_url_cache)} videos. The links appear below.")
                 st.rerun()
 
             st.markdown("---")
-            st.markdown(f"**\U0001F4CB רשימת קבצים** (חדשים \u2192 ישנים):")
+            st.markdown(f"**\U0001F4CB File list** (newest \u2192 oldest):")
 
             # Per-file row: name, mtime, size, action button
             for _p in _all_mp4s:
@@ -1144,24 +1144,24 @@ with st.expander("📂 כל הוידאו ששמורים על השרת — גיש
                 with _cols[4]:
                     _del_key = f"delask_{_p.name}"
                     if st.session_state.get(_del_key):
-                        if st.button("✔ מחק", key=f"delok_{_p.name}",
+                        if st.button("✔ Delete", key=f"delok_{_p.name}",
                                       type="primary", use_container_width=True,
-                                      help="מחיקה סופית מהשרת"):
+                                      help="Permanently delete from the server"):
                             try:
                                 _p.unlink()
                                 _url_cache.pop(str(_p), None)
                                 st.session_state.pop(_del_key, None)
                                 st.rerun()
                             except Exception as _de:
-                                st.error(f"מחיקה נכשלה: {_de}")
-                        if st.button("✖ בטל", key=f"delno_{_p.name}",
+                                st.error(f"Delete failed: {_de}")
+                        if st.button("✖ Cancel", key=f"delno_{_p.name}",
                                       use_container_width=True):
                             st.session_state.pop(_del_key, None)
                             st.rerun()
                     else:
                         if st.button("🗑", key=f"delbtn_{_p.name}",
                                       use_container_width=True,
-                                      help="הסר את הסרטון מהשרת"):
+                                      help="Remove the video from the server"):
                             st.session_state[_del_key] = True
                             st.rerun()
                 with _cols[0]:
@@ -1174,21 +1174,21 @@ with st.expander("📂 כל הוידאו ששמורים על השרת — גיש
                     _key = str(_p)
                     if _key in _url_cache:
                         st.link_button(
-                            "\u2B07\ufe0f הורד מקטבוקס",
+                            "\u2B07\ufe0f Download from catbox",
                             _url_cache[_key],
                             use_container_width=True,
-                            help="לחץ ימני \u2192 'Save link as...' או פתח בכרטיסייה חדשה",
+                            help="Right-click \u2192 'Save link as...' or open in a new tab",
                         )
                     else:
                         if st.button(
-                            "\U0001F4E4 צור לינק קבוע",
+                            "\U0001F4E4 Create permanent link",
                             key=f"upload_one_{_p.name}",
                             use_container_width=True,
-                            help="מעלה לקטבוקס, יוצר קישור הורדה ישיר",
+                            help="Uploads to catbox and creates a direct download link",
                         ):
-                            with st.spinner(f"מעלה {_p.name}..."):
+                            with st.spinner(f"Uploading {_p.name}..."):
                                 try:
                                     _url_cache[_key] = upload_video(_p)
                                     st.rerun()
                                 except Exception as _e:
-                                    st.error(f"שגיאה בהעלאה: {_e}")
+                                    st.error(f"Upload error: {_e}")

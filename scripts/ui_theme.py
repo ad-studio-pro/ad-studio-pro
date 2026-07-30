@@ -1,7 +1,7 @@
 """
 UI theme v2 — global CSS + hero + pipeline stepper for Ad Studio Pro.
 
-Goals: clear visual hierarchy, RTL Hebrew, obvious "where am I in the flow".
+Goals: clear visual hierarchy, LTR English, obvious "where am I in the flow".
 
 Usage (app.py, right after st.set_page_config):
     from ui_theme import inject_theme, render_hero, render_stepper
@@ -40,15 +40,6 @@ span[data-testid="stIconMaterial"], [data-testid="stIconMaterial"],
     max-width: 1200px;
 }
 
-/* ── RTL layout ─────────────────────────────────────────── */
-[data-testid="stAppViewContainer"] .block-container,
-[data-testid="stSidebar"] {
-    direction: rtl;
-    text-align: right;
-}
-textarea, input[type="text"] { unicode-bidi: plaintext; }
-pre, code, [data-testid="stDataFrame"] { direction: ltr; text-align: left; }
-
 /* ── Typography ─────────────────────────────────────────── */
 [data-testid="stAppViewContainer"] p, [data-testid="stAppViewContainer"] label {
     font-size: 1rem;
@@ -58,7 +49,8 @@ pre, code, [data-testid="stDataFrame"] { direction: ltr; text-align: left; }
 /* ── Section headers = step cards ───────────────────────── */
 [data-testid="stAppViewContainer"] h2 {
     background: linear-gradient(90deg, rgba(139,92,246,.16), rgba(139,92,246,0));
-    border-right: 5px solid #8B5CF6;
+    border-left: 5px solid #8B5CF6;
+    padding-left: 14px;
     border-radius: 10px;
     padding: 10px 14px;
     font-weight: 800;
@@ -103,7 +95,6 @@ pre, code, [data-testid="stDataFrame"] { direction: ltr; text-align: left; }
 
 /* ── Hero ───────────────────────────────────────────────── */
 .asp-hero {
-    direction: rtl;
     background: linear-gradient(120deg, rgba(139,92,246,.3) 0%, rgba(30,27,75,.6) 55%, rgba(11,14,23,0) 100%);
     border: 1px solid rgba(139,92,246,.3);
     border-radius: 18px;
@@ -125,7 +116,6 @@ pre, code, [data-testid="stDataFrame"] { direction: ltr; text-align: left; }
 
 /* ── Stepper ────────────────────────────────────────────── */
 .asp-stepper {
-    direction: rtl;
     display: flex; gap: 8px; flex-wrap: wrap;
     margin: 4px 0 10px;
 }
@@ -161,17 +151,17 @@ def inject_theme() -> None:
 
 
 def render_hero(user_email: str = "") -> None:
-    email_line = f" · שלום <b>{user_email}</b>" if user_email else ""
+    email_line = f" · Hello <b>{user_email}</b>" if user_email else ""
     st.markdown(
         f"""
 <div class="asp-hero">
   <h1>🎬 Ad Studio Pro</h1>
-  <p>מהתמונה של המוצר ועד סרטון פרסומת מוכן — מחקר, תכנית, פרומטים, וידאו{email_line}</p>
+  <p>From product photo to finished ad video — research, plan, prompts, video{email_line}</p>
   <div>
     <span class="asp-badge">Seedance 2.0</span>
     <span class="asp-badge">Seed Audio 1.0</span>
-    <span class="asp-badge">עד 9 תמונות מוצר בסרטון אחד</span>
-    <span class="asp-badge">רפרנס וידאו + אודיו</span>
+    <span class="asp-badge">Up to 9 product images per video</span>
+    <span class="asp-badge">Video + audio reference</span>
   </div>
 </div>
 """,
@@ -202,7 +192,7 @@ def compute_full_pipeline_steps(ss) -> list:
     s4 = bool(ss.get("stage4") or ss.get("video_results"))
 
     flags = [has_img, s1, s2, s3, s4]
-    labels = ["העלאת מוצר", "מחקר", "תכנית", "פרומטים", "וידאו מוכן"]
+    labels = ["Upload product", "Research", "Plan", "Prompts", "Video ready"]
     steps = []
     current_set = False
     for label, done in zip(labels, flags):

@@ -95,20 +95,20 @@ def submit_task(prompt, image_urls=None, video_urls=None, audio_urls=None,
         # Friendly hint: real-person filter on reference video
         if "InputVideoSensitiveContentDetected" in body or "PrivacyInformation" in body:
             raise RuntimeError(
-                "❌ Seedance חסם את הוידאו רפרנס כי הוא מזהה בו פנים של אדם אמיתי "
-                "(מנגנון anti-deepfake של ByteDance, אי אפשר לעקוף).\n\n"
-                "💡 פתרונות:\n"
-                "  1. השתמש בוידאו רפרנס בלי פנים אמיתיים (מוצר בלבד / אנימציה / מופשט)\n"
-                "  2. הסר את הוידאו רפרנס לגמרי — Seedance תיצור מהפרומט+תמונה\n"
-                "  3. טשטש/חתוך פנים מהוידאו ב-CapCut/Premiere לפני העלאה\n\n"
-                f"מקור: {body[:400]}"
+                "❌ Seedance blocked the reference video because it detected a real person's face "
+                "(ByteDance's anti-deepfake mechanism — cannot be bypassed).\n\n"
+                "💡 Solutions:\n"
+                "  1. Use a reference video without real faces (product only / animation / abstract)\n"
+                "  2. Remove the reference video entirely — Seedance will generate from the prompt+image\n"
+                "  3. Blur/crop faces out of the video in CapCut/Premiere before uploading\n\n"
+                f"Source: {body[:400]}"
             )
         # Friendly hint: real-person filter on reference IMAGE
         if "InputImageSensitiveContentDetected" in body:
             raise RuntimeError(
-                "❌ Seedance חסם תמונת רפרנס כי היא מזהה פנים של אדם אמיתי.\n\n"
-                "💡 השתמש בתמונה בלי פנים זיהויות, או טשטש את הפנים לפני העלאה.\n\n"
-                f"מקור: {body[:400]}"
+                "❌ Seedance blocked a reference image because it detected a real person's face.\n\n"
+                "💡 Use an image without identifiable faces, or blur the faces before uploading.\n\n"
+                f"Source: {body[:400]}"
             )
         raise RuntimeError(f"BytePlus submit failed [{response.status_code}]: {body}")
 
@@ -131,7 +131,7 @@ def poll_task(task_id, interval=15, max_wait=900, log=print):
     """
     url = f"{_base_url()}/contents/generations/tasks/{task_id}"
     elapsed = 0
-    log(f"   ⏳ ממתין... typical: 60-180 שניות, מתעדכן כל {interval}s")
+    log(f"   ⏳ Waiting... typical: 60-180 seconds, updates every {interval}s")
 
     while elapsed < max_wait:
         response = requests.get(url, headers=_headers(), timeout=30)
@@ -156,8 +156,8 @@ def poll_task(task_id, interval=15, max_wait=900, log=print):
             if "OutputAudioSensitive" in err_str:
                 raise RuntimeError(
                     "Task failed: Seedance's audio safety filter blocked this output.\n"
-                    "💡 פתרון: ב-Express הסר את הסימון של '🔊 ייצור אודיו' ונסה שוב.\n"
-                    f"מקור: {err_str}"
+                    "💡 Fix: in Express, uncheck '🔊 Generate audio' and try again.\n"
+                    f"Source: {err_str}"
                 )
             raise RuntimeError(f"Task failed: {err}")
 

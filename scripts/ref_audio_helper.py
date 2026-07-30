@@ -77,7 +77,7 @@ def get_ref_audio_urls(log=print):
     # 1. Voice from Audio Studio
     if st.session_state.get("use_seed_audio_ref") and st.session_state.get("seed_audio_url"):
         urls.append(st.session_state["seed_audio_url"])
-        log("🎙 מוסיף את הקול מ-Audio Studio כ-@Audio 1")
+        log("🎙 Adding the voice from Audio Studio as @Audio 1")
 
     # 2. Uploaded MP3s
     paths = st.session_state.get("ref_audio_paths", []) or []
@@ -89,13 +89,13 @@ def get_ref_audio_urls(log=print):
             urls.append(cache[p])
             continue
         try:
-            log(f"📤 מעלה רפרנס אודיו: {Path(p).name}")
+            log(f"📤 Uploading reference audio: {Path(p).name}")
             url = _upload_audio(Path(p))
             cache[p] = url
             urls.append(url)
             log(f"  ✓ {url}")
         except Exception as e:
-            log(f"⚠ שגיאה בהעלאת {Path(p).name}: {e}")
+            log(f"⚠ Error uploading {Path(p).name}: {e}")
 
     return urls[:MAX_AUDIO_REFS]
 
@@ -104,27 +104,27 @@ def render_ref_audio_ui(project_root: Path) -> None:
     """Stage-4 UI block: attach reference audio to the generated videos.
     Shared by Express and Full pipeline (rendered above the generate button).
     """
-    with st.expander("🎵 רפרנס אודיו לוידאו (אופציונלי — עד 3 MP3, סה\"כ ≤15 שניות)", expanded=False):
+    with st.expander("🎵 Reference audio for the video (optional — up to 3 MP3s, total ≤15 seconds)", expanded=False):
         st.caption(
-            "האודיו נשלח לסידנס כ-reference_audio. בפרומט הפנה אליו עם "
-            "**@Audio 1** — למשל: *\"cuts synchronized to the beat of @Audio 1\"* "
-            "(מוזיקה) או *\"the narrator speaks the voiceover from @Audio 1\"* (קריינות)."
+            "The audio is sent to Seedance as reference_audio. In the prompt, refer to it as "
+            "**@Audio 1** — e.g.: *\"cuts synchronized to the beat of @Audio 1\"* "
+            "(music) or *\"the narrator speaks the voiceover from @Audio 1\"* (voiceover)."
         )
 
         # Voice from Audio Studio
         seed_url = st.session_state.get("seed_audio_url")
         if seed_url:
             st.checkbox(
-                "🎙 השתמש בקול שיצרת ב-Audio Studio כ-@Audio 1",
+                "🎙 Use the voice you created in Audio Studio as @Audio 1",
                 value=st.session_state.get("use_seed_audio_ref", True),
                 key="use_seed_audio_ref",
             )
             st.code(seed_url, language=None)
         else:
-            st.caption("💡 טיפ: צור קריינות ב'מצב יצירת קול' למעלה — היא תופיע כאן אוטומטית.")
+            st.caption("💡 Tip: create a voiceover in 'Voice generation mode' above — it will appear here automatically.")
 
         files = st.file_uploader(
-            "קבצי MP3 (מוזיקה / קריינות / אפקטים)",
+            "MP3 files (music / voiceover / sound effects)",
             type=["mp3"],
             accept_multiple_files=True,
             key="ref_audio_uploader",
@@ -139,6 +139,6 @@ def render_ref_audio_ui(project_root: Path) -> None:
                 paths.append(str(p))
                 st.audio(str(p))
             st.session_state["ref_audio_paths"] = paths
-            st.success(f"✓ {len(paths)} קבצי אודיו מוכנים — יועלו בזמן הייצור וישלחו כ-reference_audio.")
+            st.success(f"✓ {len(paths)} audio files ready — they will be uploaded at generation time and sent as reference_audio.")
         else:
             st.session_state.pop("ref_audio_paths", None)

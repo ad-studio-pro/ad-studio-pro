@@ -11,7 +11,7 @@ Examples:
       --name vo --format mp3
 
     # Try Hebrew (English+Chinese officially; Hebrew is unofficial — test it)
-    python scripts/generate_audio.py "קריין חם ובטוח: 'הטבעת עוקבת אחרי השינה שלך.'" --name vo_he
+    python scripts/generate_audio.py "Warm confident narrator: 'This ring tracks your sleep.'" --name vo_he
 
     # Voice cloning from a reference clip (public URL), tagged @Audio1 in the text
     python scripts/generate_audio.py \

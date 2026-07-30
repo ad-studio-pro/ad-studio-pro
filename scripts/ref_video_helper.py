@@ -59,10 +59,10 @@ def _downscale_if_needed(video_path, log=print):
     """
     w, h = _ffprobe_size(video_path)
     if not w or not h:
-        log(f"  ⚠ לא הצלחתי לקרוא רזולוציה של {Path(video_path).name} — מעלה כמו שזה")
+        log(f"  ⚠ Could not read the resolution of {Path(video_path).name} — uploading as is")
         return video_path
     pixels = w * h
-    log(f"  📐 רזולוציה: {w}×{h} ({pixels:,} פיקסלים)")
+    log(f"  📐 Resolution: {w}×{h} ({pixels:,} pixels)")
     if pixels <= MAX_PIXELS:
         return video_path
 
@@ -72,12 +72,12 @@ def _downscale_if_needed(video_path, log=print):
     new_h = int(h * scale)
     new_w -= new_w % 2
     new_h -= new_h % 2
-    log(f"  ✂️ מקטין ל-{new_w}×{new_h} ({new_w * new_h:,} פיקסלים)")
+    log(f"  ✂️ Downscaling to {new_w}×{new_h} ({new_w * new_h:,} pixels)")
 
     out_path = Path(video_path).parent / f"_scaled_{Path(video_path).stem}_{new_w}x{new_h}.mp4"
     ffmpeg = _ffmpeg_bin()
     if not ffmpeg:
-        log("  ⚠ ffmpeg לא זמין — מעלה את הוידאו המקורי (BytePlus עלול לדחות)")
+        log("  ⚠ ffmpeg not available — uploading the original video (BytePlus may reject it)")
         return video_path
     try:
         result = subprocess.run(
@@ -93,7 +93,7 @@ def _downscale_if_needed(video_path, log=print):
         if result.returncode != 0:
             log(f"  ⚠ ffmpeg downscale failed: {result.stderr[-300:]}")
             return video_path
-        log(f"  ✓ נשמר: {out_path.name}")
+        log(f"  ✓ Saved: {out_path.name}")
         return out_path
     except Exception as e:
         log(f"  ⚠ downscale exception: {e}")
@@ -112,18 +112,18 @@ def _blur_faces_in_video(video_path, log=print):
     try:
         import cv2
     except ImportError:
-        log("  ⚠ opencv-python-headless לא מותקן — מדלג על טשטוש פנים")
+        log("  ⚠ opencv-python-headless not installed — skipping face blur")
         return video_path
 
     cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
     face_cascade = cv2.CascadeClassifier(cascade_path)
     if face_cascade.empty():
-        log("  ⚠ לא הצלחתי לטעון את ה-Haar cascade — מדלג על טשטוש פנים")
+        log("  ⚠ Could not load the Haar cascade — skipping face blur")
         return video_path
 
     cap = cv2.VideoCapture(str(video_path))
     if not cap.isOpened():
-        log(f"  ⚠ לא הצלחתי לפתוח את {video_path.name} — מדלג על טשטוש")
+        log(f"  ⚠ Could not open {video_path.name} — skipping blur")
         return video_path
 
     fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
@@ -134,7 +134,7 @@ def _blur_faces_in_video(video_path, log=print):
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
     out = cv2.VideoWriter(str(raw_path), fourcc, fps, (width, height))
     if not out.isOpened():
-        log("  ⚠ לא הצלחתי לפתוח קובץ פלט לטשטוש — מדלג")
+        log("  ⚠ Could not open an output file for blurring — skipping")
         cap.release()
         return video_path
 
@@ -172,15 +172,15 @@ def _blur_faces_in_video(video_path, log=print):
     out.release()
 
     if total_face_frames == 0:
-        log("  ℹ לא זוהו פנים בוידאו — מעלה את המקור")
+        log("  ℹ No faces detected in the video — uploading the original")
         raw_path.unlink(missing_ok=True)
         return video_path
 
-    log(f"  🫥 טושטשו פנים ב-{total_face_frames}/{frame_count} פריימים")
+    log(f"  🫥 Blurred faces in {total_face_frames}/{frame_count} frames")
 
     ffmpeg = _ffmpeg_bin()
     if not ffmpeg:
-        log("  ⚠ ffmpeg לא זמין — מעלה בקודק mp4v (יתכן ש-Seedance ידחה)")
+        log("  ⚠ ffmpeg not available — uploading with the mp4v codec (Seedance may reject it)")
         return raw_path
     final_path = video_path.parent / f"_blurred_{video_path.stem}.mp4"
     try:
@@ -193,7 +193,7 @@ def _blur_faces_in_video(video_path, log=print):
             capture_output=True, text=True, timeout=300,
         )
         if result.returncode == 0:
-            log(f"  ✓ קודד מחדש ל-H.264: {final_path.name}")
+            log(f"  ✓ Re-encoded to H.264: {final_path.name}")
             raw_path.unlink(missing_ok=True)
             return final_path
         log(f"  ⚠ ffmpeg re-encode failed: {result.stderr[-300:]}")
@@ -225,19 +225,19 @@ def get_ref_video_urls(log=print):
             urls.append(cache[p])
             continue
         try:
-            log(f"📤 מכין וידאו רפרנס: {Path(p).name}")
+            log(f"📤 Preparing reference video: {Path(p).name}")
             current = Path(p)
             # Step 1: Auto-blur faces
             if blur_enabled:
-                log("  🫥 בודק פנים בוידאו ומטשטש אם נמצאו...")
+                log("  🫥 Checking the video for faces and blurring any found...")
                 current = _blur_faces_in_video(current, log=log)
             # Step 2: Downscale if too big
             current = _downscale_if_needed(current, log=log)
             # Step 3: Upload
-            log(f"📤 מעלה לקטבוקס: {current.name}")
+            log(f"📤 Uploading to catbox: {current.name}")
             url = _upload_video(current)
             cache[p] = url
             urls.append(url)
         except Exception as e:
-            log(f"⚠ שגיאה בהעלאת {Path(p).name}: {e}")
+            log(f"⚠ Error uploading {Path(p).name}: {e}")
     return urls

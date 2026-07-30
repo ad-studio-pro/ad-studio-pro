@@ -52,7 +52,7 @@ def detect_variants(image_path, log=print) -> list:
         {"text": prompt},
         {"inline_data": {"mime_type": mime, "data": b64}},
     ]}]}
-    log("🔍 Gemini מזהה את הווריאציות בתמונה...")
+    log("🔍 Gemini is detecting the variants in the image...")
     r = requests.post(url, json=payload, timeout=60)
     if r.status_code >= 400:
         raise RuntimeError(f"Gemini detect failed [{r.status_code}]: {r.text[:300]}")

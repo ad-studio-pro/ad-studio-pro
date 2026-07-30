@@ -21,8 +21,8 @@ def get_ffmpeg() -> str:
         if sys_ffmpeg:
             return sys_ffmpeg
         raise RuntimeError(
-            "ffmpeg לא מותקן. הרץ את 1_SETUP.bat שוב — הוא מתקין imageio-ffmpeg "
-            "(חבילת Python שמגיעה עם ffmpeg.exe מובנה, לא צריך להתקין ffmpeg בנפרד)."
+            "ffmpeg is not installed. Run 1_SETUP.bat again - it installs imageio-ffmpeg "
+            "(a Python package that bundles ffmpeg.exe - no separate install needed)."
         )
 
 

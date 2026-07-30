@@ -25,10 +25,10 @@ except Exception:
 
 def render_audio_mode_toggle() -> bool:
     return st.checkbox(
-        "🎙 מצב יצירת קול (Seed Audio 1.0) — קריינות / דיאלוג / קול לרפרנס",
+        "🎙 Voice generation mode (Seed Audio 1.0) — voiceover / dialogue / reference voice",
         value=False,
         key="audio_mode_toggle",
-        help="עובר למסך יצירת קול. בטל את הסימון כדי לחזור למסך הווידאו.",
+        help="Switches to the voice generation screen. Uncheck to return to the video screen.",
     )
 
 
@@ -40,69 +40,69 @@ def maybe_render_audio_studio(project_root) -> bool:
 
 
 def render_audio_studio(project_root: Path) -> None:
-    st.header("🎙 Seed Audio 1.0 — יצירת קול")
+    st.header("🎙 Seed Audio 1.0 — Voice Generation")
     st.caption(
-        "TTS מהדור הבא: קריינות, דיאלוג רב-דמויות, רגש, מוזיקת רקע ואפקטים — "
-        "מפרומט אחד. אפשר להוריד את הקול או להשתמש בו כרפרנס-אודיו לסידנס."
+        "Next-gen TTS: voiceover, multi-character dialogue, emotion, background music and effects — "
+        "from a single prompt. You can download the voice or use it as reference audio for Seedance."
     )
     st.info(
-        "🌐 **שפות:** רשמית **אנגלית + סינית** (לפי הדוקומנטציה — שפות נוספות "
-        "אמורות להגיע סוף יולי). עברית עדיין לא רשמית — שולחים בכל זאת כדי לבדוק; "
-        "אם האיכות לא טובה, כדאי לכתוב באנגלית או להשתמש ב-TTS ייעודי לעברית.",
+        "🌐 **Languages:** officially **English + Chinese** (per the docs — more languages "
+        "are expected by the end of July). Hebrew is not official yet — we still send it to try; "
+        "if the quality is poor, write in English or use a dedicated Hebrew TTS.",
         icon="ℹ️",
     )
-    st.caption("💰 תמחור לפי הדוקומנטציה: ~0.15$ לדקת אודיו שנוצרת.")
+    st.caption("💰 Pricing per the docs: ~$0.15 per minute of generated audio.")
 
     prompt = st.text_area(
-        "פרומט: תיאור הסצנה/הקול + הטקסט להקראה",
+        "Prompt: scene/voice description + the text to be read",
         height=200,
         key="audio_prompt",
         placeholder=(
-            "מומלץ אנגלית + תיאור עשיר. דוגמה:\n"
+            "English with a rich description is recommended. Example:\n"
             "A sunlit kitchen, soft morning ambience. A warm female narrator, "
             "calm and confident, says: 'This tiny ring tracks your sleep and "
             "never needs charging.'"
         ),
     )
     n = len(prompt)
-    st.caption(f"{n} / 2048 תווים" + ("  ⚠️ חורג מהמקסימום" if n > 2048 else ""))
+    st.caption(f"{n} / 2048 characters" + ("  ⚠️ over the limit" if n > 2048 else ""))
 
     c1, c2 = st.columns(2)
     with c1:
-        fmt = st.selectbox("פורמט", ["mp3", "wav", "ogg_opus", "pcm"], index=0, key="audio_fmt")
+        fmt = st.selectbox("Format", ["mp3", "wav", "ogg_opus", "pcm"], index=0, key="audio_fmt")
     with c2:
         sample_rate = st.selectbox("Sample rate", [24000, 48000, 44100, 32000, 16000, 8000],
                                    index=0, format_func=lambda x: f"{x/1000:g}kHz", key="audio_sr")
 
     c3, c4, c5 = st.columns(3)
     with c3:
-        speech_rate = st.slider("מהירות דיבור", -50, 100, 0, 5, key="audio_speed",
-                                help="0 = רגיל, 100 = מהירות כפולה, -50 = חצי")
+        speech_rate = st.slider("Speech rate", -50, 100, 0, 5, key="audio_speed",
+                                help="0 = normal, 100 = double speed, -50 = half")
     with c4:
-        loudness_rate = st.slider("עוצמה", -50, 100, 0, 5, key="audio_loud",
-                                  help="0 = רגיל, 100 = כפול, -50 = חצי")
+        loudness_rate = st.slider("Loudness", -50, 100, 0, 5, key="audio_loud",
+                                  help="0 = normal, 100 = double, -50 = half")
     with c5:
-        pitch_rate = st.slider("גובה קול", -12, 12, 0, 1, key="audio_pitch",
+        pitch_rate = st.slider("Pitch", -12, 12, 0, 1, key="audio_pitch",
                                help="semitones, -12..12")
 
-    st.markdown("**🎧 רפרנס-אודיו לשכפול קול (אופציונלי — עד 3, כל אחד ≤30 שניות)**")
+    st.markdown("**🎧 Reference audio for voice cloning (optional — up to 3, each ≤30 seconds)**")
     st.caption(
-        "העלה קליפ קול (mp3/wav) והמודל יחקה את הטמבר. בפרומט הפנה אליהם עם "
-        "@Audio1 / @Audio2 / @Audio3. רפרנס-אודיו ורפרנס-תמונה לא יכולים לבוא יחד."
+        "Upload a voice clip (mp3/wav) and the model will mimic its timbre. In the prompt, refer to them as "
+        "@Audio1 / @Audio2 / @Audio3. Reference audio and reference images cannot be combined."
     )
     ref_files = st.file_uploader(
-        "עד 3 קבצי אודיו",
+        "Up to 3 audio files",
         type=["mp3", "wav", "ogg", "pcm"],
         accept_multiple_files=True,
         key="audio_ref_uploader",
     )
 
-    if st.button("🎙 צור קול", type="primary", key="audio_generate_btn"):
+    if st.button("🎙 Generate voice", type="primary", key="audio_generate_btn"):
         if not prompt.strip():
-            st.warning("כתוב פרומט קודם.")
+            st.warning("Write a prompt first.")
             st.stop()
         if n > 2048:
-            st.warning("הפרומט ארוך מדי (מקסימום 2048 תווים).")
+            st.warning("The prompt is too long (2048 characters max).")
             st.stop()
 
         # Reference audio → base64 (audio_data), sent straight to the API.
@@ -112,15 +112,15 @@ def render_audio_studio(project_root: Path) -> None:
         if ref_files:
             import base64 as _b64
             refs = []
-            with st.status("מכין רפרנס-אודיו...", expanded=True) as up:
+            with st.status("Preparing reference audio...", expanded=True) as up:
                 for uf in ref_files[:3]:
                     raw = uf.getvalue()
                     if len(raw) > 10 * 1024 * 1024:
-                        up.write(f"⚠️ {uf.name} גדול מ-10MB — דילגתי (מגבלה: 10MB / 30 שניות).")
+                        up.write(f"⚠️ {uf.name} is over 10MB — skipped (limit: 10MB / 30 seconds).")
                         continue
                     refs.append({"audio_data": _b64.b64encode(raw).decode()})
-                    up.write(f"✓ {uf.name} מוכן")
-                up.update(label="רפרנס-אודיו מוכן", state="complete")
+                    up.write(f"✓ {uf.name} ready")
+                up.update(label="Reference audio ready", state="complete")
             references = refs or None
         out_dir = project_root / "outputs" / "audio"
         ext = "ogg" if fmt == "ogg_opus" else fmt
@@ -128,7 +128,7 @@ def render_audio_studio(project_root: Path) -> None:
         out_path = out_dir / f"voice_{ts}.{ext}"
 
         try:
-            with st.status("יוצר קול עם Seed Audio 1.0...", expanded=True) as status:
+            with st.status("Generating voice with Seed Audio 1.0...", expanded=True) as status:
                 path, data = generate_audio(
                     prompt.strip(), out_path,
                     references=references or None,
@@ -136,13 +136,13 @@ def render_audio_studio(project_root: Path) -> None:
                     speech_rate=speech_rate, loudness_rate=loudness_rate,
                     pitch_rate=pitch_rate, log=status.write,
                 )
-                status.update(label="✅ הקול מוכן", state="complete")
+                status.update(label="✅ Voice ready", state="complete")
 
-            st.success(f"✅ נשמר: {path.name}"
+            st.success(f"✅ Saved: {path.name}"
                        + (f"  ·  {data['duration']}s" if data.get("duration") else ""))
             st.audio(str(path))
             with open(path, "rb") as f:
-                st.download_button("⬇ הורד קול", f, file_name=path.name, key="audio_dl")
+                st.download_button("⬇ Download voice", f, file_name=path.name, key="audio_dl")
 
             # Publish a stable URL for reuse as a Seedance reference_audio.
             stable_url = data.get("url")
@@ -155,16 +155,16 @@ def render_audio_studio(project_root: Path) -> None:
                 st.session_state["seed_audio_url"] = stable_url
                 st.session_state["seed_audio_path"] = str(path)
                 st.info(
-                    "🔗 הקול פורסם כ-URL וזמין כרפרנס-אודיו לסידנס. כבה את מצב הקול "
-                    "וחזור למסך הווידאו כדי להשתמש בו.", icon="🔗",
+                    "🔗 The voice was published as a URL and is available as reference audio for Seedance. "
+                    "Turn off voice mode and return to the video screen to use it.", icon="🔗",
                 )
                 st.code(stable_url, language=None)
         except Exception as exc:
             st.error(f"❌ {exc}")
             st.caption(
-                "בדוק ש-SEED_AUDIO_API_KEY מוגדר ב-.env (ה-X-Api-Key מקונסולת "
-                "ה-Voice) ושהשירות 'Dola_SeedSpeech_Seed_Audio_V1' מופעל."
+                "Check that SEED_AUDIO_API_KEY is set in .env (the X-Api-Key from the "
+                "Voice console) and that the 'Dola_SeedSpeech_Seed_Audio_V1' service is enabled."
             )
 
     st.markdown("---")
-    st.caption("⬆ בטל את הסימון של 'מצב יצירת קול' למעלה כדי לחזור למסך הווידאו.")
+    st.caption("⬆ Uncheck 'Voice generation mode' above to return to the video screen.")

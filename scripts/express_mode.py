@@ -162,9 +162,9 @@ def _wipe_non_express_stage_state():
 def render_mode_selector() -> bool:
     """Returns True if the user picked Express mode."""
     mode = st.radio(
-        "מצב עבודה",
-        ["⚡ Express — פרומטים מוכנים → ייצור וידאו (קצר ופשוט)",
-         "🔬 Full pipeline — מחקר, תכנון, פרומטים, וידאו (המסלול המלא)"],
+        "Work mode",
+        ["⚡ Express — ready-made prompts → video generation (quick and simple)",
+         "🔬 Full pipeline — research, planning, prompts, video (the full route)"],
         index=0,
         horizontal=True,
         key="mode_selector",
@@ -223,18 +223,18 @@ def _save_express_plan(valid_prompts, gen_audio):
 
 def render_express_ui(project_root: Path) -> None:
     """Render the Express UI. Populates st.session_state['stage3'] live."""
-    st.header("⚡ Express — פרומטים → וידאו")
+    st.header("⚡ Express — Prompts → Video")
     st.caption(
-        "כתוב את הפרומטים ישירות (משלך / מ-Claude / מ-ChatGPT). "
-        "אופציונלי: העלה תמונות מוצר. לחץ ייצור — וזהו."
+        "Write your prompts directly (your own / from Claude / from ChatGPT). "
+        "Optional: upload product images. Click generate — that's it."
     )
 
     # Big visible "Reset" button — clears all Express state so the user can
     # start over without confusion.
     reset_col, info_col = st.columns([1, 3])
     with reset_col:
-        if st.button("🧹 איפוס מלא", key="ex_reset_btn",
-                      help="מוחק את כל הפרומטים שכתבת ומאפס את שלב 4"):
+        if st.button("🧹 Full reset", key="ex_reset_btn",
+                      help="Deletes all the prompts you wrote and resets Stage 4"):
             for k in list(st.session_state.keys()):
                 if isinstance(k, str) and (
                     k.startswith("ex_prompt_")
@@ -248,62 +248,62 @@ def render_express_ui(project_root: Path) -> None:
                     st.session_state.pop(k, None)
             st.rerun()
     with info_col:
-        st.caption("💡 'איפוס מלא' מנקה הכל ומתחיל מאפס. שימושי אם נראה לך שיש פרומטים ישנים תקועים.")
+        st.caption("💡 'Full reset' clears everything and starts from scratch. Useful if old prompts seem stuck.")
 
     col_n, col_d, col_r, col_q = st.columns([1, 1, 1, 1])
     with col_q:
         ex_resolution = st.selectbox(
-            "איכות וידאו",
+            "Video quality",
             ["720p", "1080p", "4k"],
             index=0,
             key="ex_res",
-            format_func=lambda x: {"720p": "720p — מהיר וזול (ברירת מחדל)",
+            format_func=lambda x: {"720p": "720p — fast and cheap (default)",
                                     "1080p": "1080p — Full HD",
-                                    "4k": "4K — איכות מקסימלית (יקר/איטי)"}[x],
-            help="חל על כל הסרטונים בסשן. 1080p/4K עולים יותר קרדיטים ולוקחים יותר זמן.",
+                                    "4k": "4K — maximum quality (expensive/slow)"}[x],
+            help="Applies to all videos in the session. 1080p/4K cost more credits and take longer.",
         )
     with col_n:
         ex_n = st.number_input(
-            "כמה וידאו ליצור?",
+            "How many videos to create?",
             min_value=1, max_value=50, value=1, step=1, key="ex_n",
         )
     with col_d:
         ex_default_dur = st.selectbox(
-            "משך ברירת מחדל (שניות)",
+            "Default duration (seconds)",
             [5, 8, 10, 15, 20, 25, 30, 40, 45, 60], index=3,
             format_func=lambda x: f"{x}s" + (f" (×{(x + 14) // 15} chunks)" if x > 15 else ""),
             key="ex_dur",
         )
     with col_r:
         ex_default_ratio = st.selectbox(
-            "יחס מסך ברירת מחדל",
+            "Default aspect ratio",
             ["adaptive", "9:16", "16:9", "1:1", "4:3", "3:4", "21:9"],
             index=1,
             format_func=lambda x: {
-                "adaptive": "🤖 אוטומטי (לפי הרפרנס)",
-                "9:16": "📱 9:16 — אנכי (TikTok/Reels)",
-                "16:9": "🖥 16:9 — אופקי (YouTube/CTV)",
-                "1:1": "⏹ 1:1 — מרובע (Instagram feed)",
-                "4:3": "📺 4:3 — קלאסי",
-                "3:4": "📐 3:4 — דיוקן קלאסי",
-                "21:9": "🎬 21:9 — קולנועי",
+                "adaptive": "🤖 Auto (based on the reference)",
+                "9:16": "📱 9:16 — vertical (TikTok/Reels)",
+                "16:9": "🖥 16:9 — horizontal (YouTube/CTV)",
+                "1:1": "⏹ 1:1 — square (Instagram feed)",
+                "4:3": "📺 4:3 — classic",
+                "3:4": "📐 3:4 — classic portrait",
+                "21:9": "🎬 21:9 — cinematic",
             }[x],
             key="ex_ratio",
         )
 
     ex_gen_audio = st.checkbox(
-        "🔊 ייצור אודיו (Seedance מוסיף קול/דיאלוג)",
+        "🔊 Generate audio (Seedance adds voice/dialogue)",
         value=True,
         key="ex_gen_audio",
         help=(
-            "כבה אם Seedance מסרב ליצור את הוידאו עם השגיאה "
-            "'OutputAudioSensitiveContentDetected'. הוידאו ייווצר ללא אודיו."
+            "Turn off if Seedance refuses to generate the video with the error "
+            "'OutputAudioSensitiveContentDetected'. The video will be generated without audio."
         ),
     )
 
-    st.markdown("**🖼 תמונות מוצר (אופציונלי — עד 9)**")
+    st.markdown("**🖼 Product images (optional — up to 9)**")
     ex_uploaded = st.file_uploader(
-        "אם הפרומט מזכיר Image 1 / Image 2 — חובה להעלות. אחרת אופציונלי.",
+        "If the prompt mentions Image 1 / Image 2 — uploading is required. Otherwise optional.",
         type=["jpg", "jpeg", "png", "webp"],
         accept_multiple_files=True,
         key="ex_uploader",
@@ -328,8 +328,8 @@ def render_express_ui(project_root: Path) -> None:
             for _i, _r in enumerate(st.session_state.get("split_variant_roles", [])):
                 st.session_state.setdefault(f"ex_img_role_{_i}", _r)
             st.info(
-                f"✂️ משתמש ב-**{len(ex_image_paths)} הווריאציות שהופרדו אוטומטית** במקום בתמונה המקורית. "
-                "רוצה להתחיל מחדש? לחץ '🧹 איפוס מלא' למעלה."
+                f"✂️ Using the **{len(ex_image_paths)} auto-split variants** instead of the original image. "
+                "Want to start over? Click '🧹 Full reset' above."
             )
 
         # ── If multi-angle reference sheets were generated, use them instead ──
@@ -342,19 +342,19 @@ def render_express_ui(project_root: Path) -> None:
             st.session_state["image_path"] = ex_image_paths[0]
             st.session_state["_sheets_active"] = True
             st.info(
-                f"🖼 משתמש ב-**{len(ex_image_paths)} תמונות רפרנס מכל הזוויות** שנוצרו אוטומטית. "
-                "לחזרה לתמונות המקוריות: '🧹 איפוס מלא'."
+                f"🖼 Using the **{len(ex_image_paths)} auto-generated multi-angle reference sheets**. "
+                "To go back to the original images: '🧹 Full reset'."
             )
         else:
             st.session_state["_sheets_active"] = False
 
         # ── Auto variant splitter: one group photo → separate variants ──
         if len(ex_image_paths) == 1 and not st.session_state.get("_sheets_active"):
-            with st.expander("✂️ יש בתמונה כמה צבעים ביחד? הפרד אוטומטית לתמונות נפרדות", expanded=True):
+            with st.expander("✂️ Does the image show several colors together? Auto-split into separate images", expanded=True):
                 st.caption(
-                    "אם התמונה מציגה כמה וריאציות של המוצר ביחד (למשל ערימת טבעות ב-7 צבעים) — "
-                    "לחיצה אחת: Gemini מזהה כל צבע, יוצר לכל אחד תמונת מוצר נקייה על רקע לבן, "
-                    "ונותן שמות אוטומטית. בסוף תקבל @Image נפרד לכל צבע + המחולל ייפתח לבד."
+                    "If the image shows several variants of the product together (e.g. a pile of rings in 7 colors) — "
+                    "one click: Gemini detects each color, creates a clean product image on a white background for each, "
+                    "and names them automatically. You end up with a separate @Image per color + the generator opens on its own."
                 )
                 try:
                     from nano_banana import is_available as _nb_ok
@@ -362,26 +362,26 @@ def render_express_ui(project_root: Path) -> None:
                 except Exception:
                     _nb_available = False
                 if not _nb_available:
-                    st.warning("חסר GEMINI_API_KEY ב-Secrets — נדרש להפרדה האוטומטית.")
-                elif st.button("✂️ הפרד אוטומטית לווריאציות", type="primary",
+                    st.warning("GEMINI_API_KEY is missing in Secrets — required for auto-splitting.")
+                elif st.button("✂️ Auto-split into variants", type="primary",
                                 use_container_width=True, key="ex_split_btn"):
                     import importlib as _il
                     import variant_splitter as _vs
                     _il.reload(_vs)
-                    with st.status("✂️ מפריד וריאציות...", expanded=True) as _sp:
+                    with st.status("✂️ Splitting variants...", expanded=True) as _sp:
                         try:
                             _names = _vs.detect_variants(ex_image_paths[0], log=_sp.write)
                             if len(_names) < 2:
-                                _sp.update(label="זוהתה וריאציה אחת בלבד — אין מה להפריד", state="complete")
+                                _sp.update(label="Only one variant detected — nothing to split", state="complete")
                             else:
-                                _sp.write(f"✓ זוהו {len(_names)} וריאציות: " + ", ".join(_names))
+                                _sp.write(f"✓ Detected {len(_names)} variants: " + ", ".join(_names))
                                 _results = _vs.extract_variants(
                                     ex_image_paths[0], _names,
                                     save_dir / "variants", log=_sp.write,
                                 )
                                 st.session_state["split_variant_paths"] = [r_[0] for r_ in _results]
                                 st.session_state["split_variant_roles"] = [r_[1] for r_ in _results]
-                                _sp.update(label=f"✅ נוצרו {len(_results)} תמונות נפרדות עם שמות", state="complete")
+                                _sp.update(label=f"✅ Created {len(_results)} separate named images", state="complete")
                                 st.rerun()
                         except Exception as _e:
                             _sp.update(label=f"❌ {_e}", state="error", expanded=True)
@@ -394,8 +394,8 @@ def render_express_ui(project_root: Path) -> None:
         # Per-image role tags + @Image cheat sheet for multi-product videos
         if len(ex_image_paths) > 1:
             st.caption(
-                "🏷 **תפקיד לכל תמונה (מומלץ)** — עוזר לך לכתוב פרומט שמשלב "
-                "כמה מוצרים/רכיבים בסרטון אחד בלי בלבול."
+                "🏷 **Role for each image (recommended)** — helps you write a prompt that combines "
+                "several products/components in one video without confusion."
             )
 
             # Auto-name: one Gemini call fills all role fields on first upload
@@ -412,14 +412,14 @@ def render_express_ui(project_root: Path) -> None:
                         import importlib as _il2
                         import variant_splitter as _vs2
                         _il2.reload(_vs2)
-                        with st.spinner("🤖 Gemini מזהה את הצבעים ונותן שמות אוטומטית..."):
+                        with st.spinner("🤖 Gemini is detecting the colors and naming them automatically..."):
                             _auto_names = _vs2.name_images(ex_image_paths)
                         for _i, _n in enumerate(_auto_names):
                             if _n:
                                 st.session_state[f"ex_img_role_{_i}"] = _n
-                        st.toast(f"✅ זוהו {sum(1 for n_ in _auto_names if n_)} שמות אוטומטית")
+                        st.toast(f"✅ Auto-detected {sum(1 for n_ in _auto_names if n_)} names")
                 except Exception as _e:
-                    st.caption(f"⚠ זיהוי אוטומטי נכשל ({_e}) — אפשר למלא ידנית.")
+                    st.caption(f"⚠ Auto-detection failed ({_e}) — you can fill in manually.")
 
             ex_roles = []
             role_cols = st.columns(min(len(ex_image_paths), 3))
@@ -428,93 +428,93 @@ def render_express_ui(project_root: Path) -> None:
                     r = st.text_input(
                         f"@Image {idx+1}",
                         key=f"ex_img_role_{idx}",
-                        placeholder="למשל: בקבוק - חזית / רכיב / אריזה",
+                        placeholder="e.g.: bottle - front / component / packaging",
                     )
                     ex_roles.append(r.strip())
             st.session_state["image_roles"] = ex_roles
             tagged = [f"@Image {i+1} = {r}" for i, r in enumerate(ex_roles) if r]
             if tagged:
                 st.info(
-                    "📋 **מפת רפרנסים לפרומט** — העתק לפרומט ועגן כל beat לתמונה הנכונה:\n\n"
+                    "📋 **Reference map for the prompt** — copy into the prompt and anchor each beat to the right image:\n\n"
                     + "\n".join(f"- `{t}`" for t in tagged)
-                    + "\n\nדוגמה: *\"[00:00] she holds @Image 1 ... [00:05] close-up on @Image 2 next to it — "
+                    + "\n\nExample: *\"[00:00] she holds @Image 1 ... [00:05] close-up on @Image 2 next to it — "
                     "all references must remain visually unchanged across cuts.\"*"
                 )
         else:
             st.session_state["image_roles"] = []
 
             # ── Reference sheet for a single product image ──
-            with st.expander("🖼 צור Reference Sheet מכל הזוויות לתמונה (מומלץ!)",
+            with st.expander("🖼 Create a multi-angle Reference Sheet for the image (recommended!)",
                               expanded=not st.session_state.get("_sheets_active")):
                 st.caption(
-                    "Nano Banana יוצר מהתמונה שלך תמונה אחת עם 6 פאנלים — חזית, שני פרופילים, "
-                    "מלמעלה, מאקרו (רואים עובי), ועל היד — ומחליף אותה אוטומטית. "
-                    "ככה סידנס מבין את הצורה האמיתית מכל זווית והמוצר לא יוצא מעוות."
+                    "Nano Banana turns your image into one image with 6 panels — front, both profiles, "
+                    "top-down, macro (thickness visible), and worn on the hand — and swaps it in automatically. "
+                    "This way Seedance understands the true shape from every angle and the product doesn't come out warped."
                 )
                 _single_mode = st.radio(
-                    "סוג המוצר",
-                    ["💍 נלבש על אצבע (טבעת)", "🤲 מוחזק ביד (כל מוצר אחר)"],
+                    "Product type",
+                    ["💍 Worn on a finger (ring)", "🤲 Held in hand (any other product)"],
                     index=0, horizontal=True, key="ex_sheet_mode_1",
                 )
                 _smode1 = "ring" if _single_mode.startswith("💍") else "held"
                 if not st.session_state.get("_sheets_active"):
-                    if st.button("🚀 צור Reference Sheet והשתמש בו", type="primary",
+                    if st.button("🚀 Create Reference Sheet and use it", type="primary",
                                   use_container_width=True, key="ex_sheets_btn_1"):
                         from nano_banana import generate_scene_image as _gen1
                         _src_sig1 = "|".join(ex_image_paths)
-                        with st.status("🖼 יוצר Reference Sheet...", expanded=True) as _sh1:
+                        with st.status("🖼 Creating Reference Sheet...", expanded=True) as _sh1:
                             try:
                                 _out1 = save_dir / "sheets" / "sheet_single.png"
                                 _gen1(build_product_asset_sheet_prompt("", _smode1),
                                       [ex_image_paths[0]], _out1, log=_sh1.write)
                                 st.session_state["sheet_variant_paths"] = [str(_out1)]
                                 st.session_state["_sheets_src_sig"] = _src_sig1
-                                _sh1.update(label="✅ Reference Sheet נוצר והוחלף אוטומטית", state="complete")
+                                _sh1.update(label="✅ Reference Sheet created and swapped in automatically", state="complete")
                                 st.rerun()
                             except Exception as _e1:
                                 _sh1.update(label=f"❌ {_e1}", state="error", expanded=True)
-                    with st.expander("👁 הפרומט (לשימוש ידני במחולל חיצוני)", expanded=False):
+                    with st.expander("👁 The prompt (for manual use in an external generator)", expanded=False):
                         st.code(build_product_asset_sheet_prompt("", _smode1), language=None)
                 else:
                     st.success(
-                        "✅ ה-Reference Sheet פעיל — הסרטון ייווצר ממנו. "
-                        "טיפ לפרומט: הוסף את השורה — "
+                        "✅ The Reference Sheet is active — the video will be generated from it. "
+                        "Prompt tip: add the line — "
                         "*\"@Image 1 is a multi-angle reference sheet of the product — "
                         "match its exact shape, thickness and proportions from every angle.\"*"
                     )
 
         # ── Auto prompt generator: one UGC video that shows ALL products ──
         if len(ex_image_paths) > 1:
-            with st.expander("🪄 מחולל אוטומטי: פרומט UGC אחד שמציג את כל המוצרים", expanded=True):
+            with st.expander("🪄 Auto generator: one UGC prompt that shows all the products", expanded=True):
                 st.caption(
-                    f"העלית {len(ex_image_paths)} תמונות — לחיצה אחת בונה פרומט מוכן שבו הדמות "
-                    "מדברת על כל הווריאציות ומראה כל אחת מהן, אחת אחרי השנייה, עם כל חוקי העקביות."
+                    f"You uploaded {len(ex_image_paths)} images — one click builds a ready prompt where the character "
+                    "talks about all the variants and shows each one, one after another, with all the consistency rules."
                 )
                 gen_mode = st.radio(
-                    "איך מציגים כל מוצר?",
-                    ["💍 נלבש על אצבע (טבעות)", "🤲 מוחזק ביד (כל מוצר אחר)"],
+                    "How is each product shown?",
+                    ["💍 Worn on a finger (rings)", "🤲 Held in hand (any other product)"],
                     index=0, horizontal=True, key="ex_gen_mode",
                 )
                 gen_size = ""
                 if gen_mode.startswith("🤲"):
                     gen_size = st.text_input(
-                        "גודל אמיתי של המוצר (באנגלית — חשוב לפרופורציות!)",
+                        "Real product size (in English — important for proportions!)",
                         key="ex_gen_size",
                         placeholder="e.g. a 25cm tall bottle / a palm-sized jar / a 10cm box",
                     )
                 _dur_opts = [10, 15, 20, 25, 30]
                 _top_dur = int(st.session_state.get("ex_dur", 15) or 15)
                 gen_dur = st.select_slider(
-                    "משך הסרטון לפרומט (זה מה שקובע — גם לפרומט וגם לוידאו)",
+                    "Video duration for the prompt (this is what counts — for both the prompt and the video)",
                     options=_dur_opts,
                     value=_top_dur if _top_dur in _dur_opts else 15,
                     key="ex_gen_dur",
-                    help="מעל 15 שניות = הסרטון ייווצר בכמה חלקים שיודבקו אוטומטית.",
+                    help="Over 15 seconds = the video is generated in several chunks stitched together automatically.",
                 )
                 _per_variant = max(1, (int(gen_dur) - 4) // max(1, len(ex_image_paths)))
                 st.caption(
-                    f"⏱ ב-{int(gen_dur)} שניות כל אחד מ-{len(ex_image_paths)} הצבעים יקבל ~{_per_variant} שניות מסך"
-                    + (" — קצר מאוד; שקול 20-25s או פחות צבעים." if _per_variant < 2 else ".")
+                    f"⏱ At {int(gen_dur)} seconds, each of the {len(ex_image_paths)} colors gets ~{_per_variant} seconds of screen time"
+                    + (" — very short; consider 20-25s or fewer colors." if _per_variant < 2 else ".")
                 )
                 gen_prompt = build_multi_product_ugc_prompt(
                     len(ex_image_paths),
@@ -524,11 +524,11 @@ def render_express_ui(project_root: Path) -> None:
                     size_desc=gen_size,
                     sheets_active=bool(st.session_state.get("_sheets_active")),
                 )
-                if st.button("🪄 בנה פרומט לכל המוצרים → וידאו #1", type="primary",
+                if st.button("🪄 Build a prompt for all products → Video #1", type="primary",
                               use_container_width=True, key="ex_gen_btn"):
                     st.session_state["ex_prompt_0"] = gen_prompt
                     st.session_state["ex_dur_0"] = int(gen_dur)
-                    st.success("✅ הפרומט נכנס לוידאו #1 למטה — אפשר לערוך אותו ואז לגלול לשלב 4 לייצור.")
+                    st.success("✅ The prompt was placed into Video #1 below — you can edit it, then scroll to Stage 4 to generate.")
 
                 # Premium path: Claude (Opus) writes the prompt with the full
                 # skill ruleset AND sees the actual product images.
@@ -538,7 +538,7 @@ def render_express_ui(project_root: Path) -> None:
                 except Exception:
                     _claude_ok = False
                 if _claude_ok:
-                    if st.button("🧠 תן ל-Claude לכתוב את הפרומט (רואה את התמונות — איכות מקסימלית)",
+                    if st.button("🧠 Let Claude write the prompt (sees the images — maximum quality)",
                                   use_container_width=True, key="ex_claude_btn"):
                         from anthropic_client import call_claude_api
                         from prompt_generator import SKILL_INSTRUCTIONS
@@ -564,7 +564,7 @@ def render_express_ui(project_root: Path) -> None:
                             f"{_rules}\n\n"
                             "OUTPUT: ONE fenced code block containing ONLY the prompt. No commentary."
                         )
-                        with st.spinner("🧠 Claude מסתכל על התמונות וכותב את הפרומט..."):
+                        with st.spinner("🧠 Claude is looking at the images and writing the prompt..."):
                             try:
                                 _resp = call_claude_api(
                                     _msg, attachments=list(ex_image_paths),
@@ -572,30 +572,30 @@ def render_express_ui(project_root: Path) -> None:
                                 )
                                 st.session_state["ex_prompt_0"] = parse_prompt_from_response(_resp)
                                 st.session_state["ex_dur_0"] = int(gen_dur)
-                                st.success("✅ הפרומט של Claude נכנס לוידאו #1 למטה — גלול לבדוק ולערוך.")
+                                st.success("✅ Claude's prompt was placed into Video #1 below — scroll down to review and edit.")
                             except Exception as _e:
-                                st.error(f"Claude נכשל: {_e}")
-                with st.expander("👁 תצוגה מקדימה של הפרומט", expanded=False):
+                                st.error(f"Claude failed: {_e}")
+                with st.expander("👁 Prompt preview", expanded=False):
                     st.code(gen_prompt, language=None)
 
             # ── Multi-angle reference sheets: one image per variant, all sides ──
-            with st.expander("🖼 מחולל תמונות מכל הזוויות (Reference Sheet לכל צבע)", expanded=False):
+            with st.expander("🖼 Multi-angle image generator (a Reference Sheet per color)", expanded=False):
                 st.caption(
-                    "לכל וריאציה נבנה פרומט ל-**Seedream 5.0 / Nano Banana**: תמונה אחת עם 6 פאנלים — "
-                    "חזית, שני פרופילים, מלמעלה, מאקרו, ועל היד. מדביקים את הפרומט במחולל התמונות "
-                    "**עם התמונה המקורית מצורפת**, ואת התוצאה מעלים לכאן בחזרה במקום התמונה המקורית — "
-                    "ככה סידנס מקבלת את כל הזוויות של כל טבעת בתמונה אחת ויכולה להנפיש אותה מכל כיוון."
+                    "For each variant we build a prompt for **Seedream 5.0 / Nano Banana**: one image with 6 panels — "
+                    "front, both profiles, top-down, macro, and worn on the hand. Paste the prompt into the image generator "
+                    "**with the original image attached**, then upload the result back here in place of the original image — "
+                    "this way Seedance gets every angle of each ring in a single image and can animate it from any direction."
                 )
                 sheet_mode = "ring" if st.session_state.get("ex_gen_mode", "💍").startswith("💍") else "held"
                 roles_now = st.session_state.get("image_roles", [])
 
                 # One-click: Nano Banana builds ALL the sheets and swaps them in
                 if not st.session_state.get("_sheets_active"):
-                    if st.button("🚀 צור אוטומטית את כל תמונות הרפרנס והשתמש בהן (Nano Banana)",
+                    if st.button("🚀 Auto-create all the reference sheets and use them (Nano Banana)",
                                   type="primary", use_container_width=True, key="ex_sheets_btn"):
                         from nano_banana import generate_scene_image as _gen_img
                         _src_sig = "|".join(ex_image_paths)
-                        with st.status("🖼 יוצר תמונת רפרנס מכל הזוויות לכל וריאציה...", expanded=True) as _sh:
+                        with st.status("🖼 Creating a multi-angle reference sheet for each variant...", expanded=True) as _sh:
                             try:
                                 _new_paths = []
                                 for _idx, _ip in enumerate(ex_image_paths):
@@ -607,39 +607,39 @@ def render_express_ui(project_root: Path) -> None:
                                     _new_paths.append(str(_out))
                                 st.session_state["sheet_variant_paths"] = _new_paths
                                 st.session_state["_sheets_src_sig"] = _src_sig
-                                _sh.update(label=f"✅ נוצרו {len(_new_paths)} תמונות רפרנס — הוחלפו אוטומטית", state="complete")
+                                _sh.update(label=f"✅ Created {len(_new_paths)} reference sheets — swapped in automatically", state="complete")
                                 st.rerun()
                             except Exception as _e:
                                 _sh.update(label=f"❌ {_e}", state="error", expanded=True)
-                    st.caption("או ידנית — העתק את הפרומפטים למטה למחולל תמונות חיצוני:")
+                    st.caption("Or manually — copy the prompts below into an external image generator:")
                 else:
-                    st.success("✅ תמונות הרפרנס פעילות — הסרטון ייווצר מהן.")
+                    st.success("✅ The reference sheets are active — the video will be generated from them.")
                 for idx in range(len(ex_image_paths)):
                     label = roles_now[idx] if idx < len(roles_now) else ""
                     title = label if label else f"Image {idx+1}"
                     st.markdown(f"**@Image {idx+1} — {title}**")
                     st.code(build_product_asset_sheet_prompt(label, sheet_mode), language=None)
 
-    st.markdown("**🎥 וידאו רפרנס (אופציונלי — עד 3, כל אחד ≤15 שניות)**")
+    st.markdown("**🎥 Reference video (optional — up to 3, each ≤15 seconds)**")
     st.caption(
-        "אם יש לך וידאו דוגמה (קליפ של מתחרה / יוצר אחר / וידאו ישן שלכם) — "
-        "העלה אותו כאן, וקלוד ינסה לעשות חיקוי בסגנון/בתנועה, רק עם המוצר שלך והדמות שלך."
+        "If you have an example video (a competitor's clip / another creator / an old video of yours) — "
+        "upload it here, and the model will try to mimic its style/motion, just with your product and your character."
     )
     ex_video_refs = st.file_uploader(
-        "MP4 בלבד, עד 3 קבצים",
+        "MP4 only, up to 3 files",
         type=["mp4", "mov", "webm"],
         accept_multiple_files=True,
         key="ex_video_refs",
     )
     st.checkbox(
-        "🫥 טשטש פנים אוטומטית בוידאו רפרנס (עוקף את המסנן של Seedance)",
+        "🫥 Auto-blur faces in reference videos (bypasses Seedance's filter)",
         value=True,
         key="ex_blur_faces",
         help=(
-            "Seedance חוסמת וידאו רפרנס שיש בו פנים אמיתיים. "
-            "האפשרות הזאת מטשטשת פנים אוטומטית לפני העלאה — Seedance עדיין לומדת "
-            "את הסגנון, התנועה והקומפוזיציה (זה כל מה שהיא משתמשת מהרפרנס), "
-            "ופנים אמיתיים נחסכים מהסינון. כבה אם הוידאו כבר נקי מאנשים."
+            "Seedance blocks reference videos that contain real faces. "
+            "This option auto-blurs faces before uploading — Seedance still learns "
+            "the style, motion and composition (which is all it uses from the reference), "
+            "and real faces are kept away from the filter. Turn off if the video is already people-free."
         ),
     )
     if ex_video_refs:
@@ -651,16 +651,16 @@ def render_express_ui(project_root: Path) -> None:
             p.write_bytes(vf.getvalue())
             ref_paths.append(str(p))
         st.session_state["ref_video_paths"] = ref_paths
-        st.success(f"✓ {len(ref_paths)} וידאו רפרנס מוכנים. יועלו לקטבוקס בזמן ייצור.")
+        st.success(f"✓ {len(ref_paths)} reference videos ready. They will be uploaded to catbox at generation time.")
     else:
         st.session_state.pop("ref_video_paths", None)
 
-    st.markdown(f"**📝 כתוב {int(ex_n)} פרומטים** (כל אחד נפרד):")
+    st.markdown(f"**📝 Write {int(ex_n)} prompts** (each one separate):")
     ex_prompts = []
     for i in range(int(ex_n)):
-        with st.expander(f"וידאו #{i+1}", expanded=(i == 0)):
+        with st.expander(f"Video #{i+1}", expanded=(i == 0)):
             txt = st.text_area(
-                f"פרומט וידאו {i+1}",
+                f"Video prompt {i+1}",
                 height=180,
                 key=f"ex_prompt_{i}",
                 placeholder=(
@@ -673,20 +673,20 @@ def render_express_ui(project_root: Path) -> None:
             dc, rc = st.columns([1, 1])
             with dc:
                 dur_i = st.number_input(
-                    f"משך וידאו {i+1} (שניות)",
+                    f"Video {i+1} duration (seconds)",
                     min_value=5, max_value=60, value=int(ex_default_dur), step=1,
                     key=f"ex_dur_{i}",
                 )
             with rc:
-                ratio_options = ["(ברירת מחדל)", "adaptive", "9:16", "16:9", "1:1", "4:3", "3:4", "21:9"]
+                ratio_options = ["(default)", "adaptive", "9:16", "16:9", "1:1", "4:3", "3:4", "21:9"]
                 ratio_i = st.selectbox(
-                    f"יחס מסך וידאו {i+1}",
+                    f"Video {i+1} aspect ratio",
                     ratio_options,
                     index=0,
                     key=f"ex_ratio_{i}",
-                    help="(ברירת מחדל) משתמש ביחס שבחרת למעלה",
+                    help="(default) uses the ratio you picked above",
                 )
-            actual_ratio = ex_default_ratio if ratio_i == "(ברירת מחדל)" else ratio_i
+            actual_ratio = ex_default_ratio if ratio_i == "(default)" else ratio_i
             ex_prompts.append({
                 "prompt": txt,
                 "duration": dur_i,
@@ -701,15 +701,15 @@ def render_express_ui(project_root: Path) -> None:
     if valid:
         _save_express_plan(valid, ex_gen_audio)
         st.success(
-            f"\u2705 {len(valid)} פרומטים פעילים מתוך {int(ex_n)}. "
-            f"גלול ל-'5\ufe0f\u20e3 שלב 4' לייצור."
+            f"\u2705 {len(valid)} active prompts out of {int(ex_n)}. "
+            f"Scroll to '5\ufe0f\u20e3 Stage 4' to generate."
         )
     else:
         # No valid prompts — wipe Express plan so Stage 4 stays disabled.
         st.session_state.pop("stage3", None)
         st.session_state.pop("stage2", None)
-        st.info(f"\U0001F4A1 כתוב פרומט באחד מ-{int(ex_n)} השדות למעלה.")
+        st.info(f"\U0001F4A1 Write a prompt in one of the {int(ex_n)} fields above.")
 
     st.markdown("---")
-    st.caption("\u2B07 גלול מטה ל-'5\ufe0f\u20e3 שלב 4' לייצור הוידאו.")
+    st.caption("\u2B07 Scroll down to '5\ufe0f\u20e3 Stage 4' to generate the video.")
     st.markdown("---")
