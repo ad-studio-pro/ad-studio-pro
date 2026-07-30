@@ -214,7 +214,7 @@ def _process_callback_if_present():
         except Exception:
             pass
         st.session_state["_auth_error"] = (
-            "פג תוקף או חתימה לא תקינה של ההתחברות. לחץ שוב על 'התחבר עם Google'."
+            "Login expired or has an invalid signature. Click 'Sign in with Google' again."
         )
         return
 
@@ -311,7 +311,7 @@ def render_logout_button():
     with st.sidebar:
         st.markdown("---")
         st.caption(f"\U0001F464 {user['email']}")
-        if st.button("התנתק", use_container_width=True):
+        if st.button("Sign out", use_container_width=True):
             st.session_state.pop("_auth_user", None)
             st.session_state.pop("_oauth_state", None)
             try:
@@ -329,34 +329,34 @@ def _render_landing():
                        page_icon="🎬", layout="centered")
     st.title("🎬 Ad Studio Pro")
     st.write("")
-    st.markdown("### ברוך הבא לסטודיו של **neobrands.io**")
+    st.markdown("### Welcome to the **neobrands.io** studio")
     st.write("")
     st.info(
-        "מערכת זו פתוחה אך ורק לעובדי **neobrands.io**.\n\n"
-        "התחבר עם חשבון Google בעל מייל `@neobrands.io` כדי להתחיל."
+        "This system is available to **neobrands.io** team members only.\n\n"
+        "Sign in with a Google account using a `@neobrands.io` email to get started."
     )
     err = st.session_state.pop("_auth_error", None)
     if err:
         st.warning(err)
     st.write("")
     auth_url = _build_auth_url()
-    st.link_button("🔐 התחבר עם Google", auth_url,
+    st.link_button("🔐 Sign in with Google", auth_url,
                    type="primary", use_container_width=True)
     st.write("")
-    st.caption("אם אין לך עדיין מייל `@neobrands.io` — פנה למנהל החברה.")
-    st.caption("💡 לאחר התחברות ראשונית, תישאר מחובר ל-30 ימים.")
+    st.caption("No `@neobrands.io` email yet? Contact your company admin.")
+    st.caption("💡 After signing in once, you stay logged in for 30 days.")
 
 
 def _render_rejection(email: str):
     st.set_page_config(page_title="Ad Studio Pro — Access denied",
                        page_icon="🚫", layout="centered")
-    st.title("🚫 גישה לא מאושרת")
+    st.title("🚫 Access denied")
     st.error(
-        f"המייל **{email}** אינו של עובד neobrands.io.\n\n"
-        "המערכת פתוחה אך ורק לכתובות שמסתיימות ב-`@neobrands.io`."
+        f"The email **{email}** does not belong to a neobrands.io team member.\n\n"
+        "This system is available only to addresses ending in `@neobrands.io`."
     )
     st.write("")
-    if st.button("🔄 נסה עם חשבון אחר", use_container_width=True):
+    if st.button("🔄 Try a different account", use_container_width=True):
         st.session_state.pop("_auth_user", None)
         try:
             st.query_params.clear()
@@ -368,15 +368,15 @@ def _render_rejection(email: str):
 def _render_setup_needed():
     st.set_page_config(page_title="Ad Studio Pro — Setup needed",
                        page_icon="🔧", layout="centered")
-    st.title("🔧 הגדרת Google OAuth")
+    st.title("🔧 Google OAuth setup")
     st.warning(
-        "ה-`[auth]` block ב-Streamlit Secrets עדיין לא הוגדר. "
-        "האפליקציה תתחיל לעבוד ברגע שתשלים את הצעדים בקובץ "
+        "The `[auth]` block in Streamlit Secrets is not configured yet. "
+        "The app will start working once you complete the steps in "
         "`GOOGLE_OAUTH_SETUP.md`."
     )
     st.markdown("---")
-    st.write("**הצעדים בקצרה:**")
-    st.write("1. צור OAuth Client ב-https://console.cloud.google.com/apis/credentials")
-    st.write("2. הוסף redirect URI: `https://ad-studio-pro.streamlit.app/`")
-    st.write("3. הדבק את ה-`[auth]` block ב-Streamlit Cloud → Settings → Secrets")
-    st.write("4. רענן את הדף")
+    st.write("**Steps in short:**")
+    st.write("1. Create an OAuth Client at https://console.cloud.google.com/apis/credentials")
+    st.write("2. Add redirect URI: `https://ad-studio-pro.streamlit.app/`")
+    st.write("3. Paste the `[auth]` block in Streamlit Cloud → Settings → Secrets")
+    st.write("4. Refresh the page")
