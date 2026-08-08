@@ -16,9 +16,49 @@ transformation of an AI asset, not a technique for disguising a real person's
 photo.
 """
 
+import base64
 from pathlib import Path
 
-from nano_banana import generate_scene_image, is_available  # noqa: F401
+import requests
+
+from nano_banana import generate_scene_image, is_available, _get  # noqa: F401
+
+# Optional stronger engine: GPT Image 2 (OpenAI) — better identity/composition
+# preservation on complex scenes. Used automatically when OPENAI_API_KEY is set
+# (Streamlit Secrets or .env); otherwise falls back to Nano Banana.
+OPENAI_IMAGE_MODEL_DEFAULT = "gpt-image-2"
+
+
+def is_openai_available() -> bool:
+    return bool(_get("OPENAI_API_KEY", ""))
+
+
+def _prepare_with_openai(image_path, prompt, out_path, log=print):
+    """Image-to-image edit via OpenAI Images API (GPT Image 2)."""
+    key = _get("OPENAI_API_KEY", "")
+    model = _get("OPENAI_IMAGE_MODEL", OPENAI_IMAGE_MODEL_DEFAULT)
+    image_path = Path(image_path)
+    raw = image_path.read_bytes()
+    mime = "image/png" if raw.startswith(b"\x89PNG") else "image/jpeg"
+    log(f"  🎨 Re-rendering via {model} (OpenAI)...")
+    resp = requests.post(
+        "https://api.openai.com/v1/images/edits",
+        headers={"Authorization": f"Bearer {key}"},
+        files={"image": (image_path.name, raw, mime)},
+        data={"model": model, "prompt": prompt, "size": "auto"},
+        timeout=180,
+    )
+    if resp.status_code >= 400:
+        raise RuntimeError(f"OpenAI images/edits failed [{resp.status_code}]: {resp.text[:300]}")
+    data = resp.json()
+    b64 = data.get("data", [{}])[0].get("b64_json")
+    if not b64:
+        raise RuntimeError(f"No image in OpenAI response: {str(data)[:200]}")
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_bytes(base64.b64decode(b64))
+    log(f"  ✓ saved {out_path.name} ({out_path.stat().st_size // 1024} KB)")
+    return out_path
 
 
 PREP_PROMPT = (
@@ -54,8 +94,15 @@ def prepare_ai_character(image_path, out_path, log=print, strength="soft"):
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     log(f"🧑‍🎤 Preparing AI character ({strength}): {Path(image_path).name}")
-    return generate_scene_image(_PROMPTS.get(strength, PREP_PROMPT),
-                                [str(image_path)], out_path, log=log)
+    prompt = _PROMPTS.get(strength, PREP_PROMPT)
+    # Prefer GPT Image 2 when configured — much better at preserving complex
+    # multi-person scenes. Fall back to Nano Banana on any failure.
+    if is_openai_available():
+        try:
+            return _prepare_with_openai(image_path, prompt, out_path, log=log)
+        except Exception as e:
+            log(f"  ⚠ GPT Image 2 failed ({e}) — falling back to Nano Banana")
+    return generate_scene_image(prompt, [str(image_path)], out_path, log=log)
 
 
 def prepare_many(image_paths, out_dir, log=print, progress=None, strength="soft"):
