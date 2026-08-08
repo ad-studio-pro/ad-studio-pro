@@ -863,6 +863,9 @@ if videos_with_prompts:
 
                     # AI-character references — uploaded separately so retries can
                     # swap exactly these URLs without touching product images.
+                    # Keep the ORIGINAL character files — every prepare level
+                    # re-renders from these, never from a previous prepare output.
+                    _ai_char_originals = list(_ai_char_src)
                     ai_char_urls = []
                     for idx, ip in enumerate(_ai_char_src, 1):
                         if Path(ip).exists():
@@ -955,7 +958,9 @@ if videos_with_prompts:
                                     attempt_label = "" if attempt == 0 else f" (retry {attempt})"
                                     s4_status.write(f"  📨 Sending chunk {ci}{attempt_label} to Seedance ({resolution}, {ratio}, {chunk_dur}s)...")
                                     # Escalating submit: original chars → soft prepare → strong stylize
-                                    _prep_levels = [None, "soft", "strong"]
+                                    _prep_levels = [None, "soft"]
+                                    if st.session_state.get("ai_allow_strong"):
+                                        _prep_levels.append("strong")
                                     task_id = None
                                     for _lvl_i, _lvl in enumerate(_prep_levels):
                                         try:
@@ -966,7 +971,7 @@ if videos_with_prompts:
                                                 )
                                                 import ai_character_helper as _ach2
                                                 _prep = _ach2.prepare_many(
-                                                    st.session_state["ai_char_paths"],
+                                                    _ai_char_originals,
                                                     PROJECT_ROOT / "assets" / "ai_characters" / "prepared",
                                                     log=s4_status.write, strength=_lvl)
                                                 st.session_state["ai_char_paths"] = _prep
@@ -996,7 +1001,12 @@ if videos_with_prompts:
                                                 continue  # escalate to the next prepare level
                                             raise
                                     if task_id is None:
-                                        raise RuntimeError("Submit failed after all AI-character retries")
+                                        raise RuntimeError(
+                                            "The filter still blocked the image after the realistic-CGI pass. "
+                                            "Best fix: regenerate the source frame with a 'subtle high-end CGI "
+                                            "render aesthetic' line in its prompt, or enable the strong stylized "
+                                            "fallback checkbox in the AI-character section."
+                                        )
                                     last_task_id = task_id
                                     try:
                                         from task_queue import add_task as _tq_add

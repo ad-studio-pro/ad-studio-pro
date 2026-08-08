@@ -644,6 +644,13 @@ def render_express_ui(project_root: Path) -> None:
             "✅ I confirm these are AI-generated characters — not photos of real people.",
             key="ai_char_confirmed",
         )
+        st.checkbox(
+            "🎭 Allow STRONG stylized fallback if the realistic pass is blocked "
+            "(may look game-cinematic / less photoreal)",
+            value=False, key="ai_allow_strong",
+            help="Off = if the realistic-CGI pass is still blocked, generation stops with advice "
+                 "instead of producing an overly stylized video.",
+        )
         _ai_files = st.file_uploader(
             "AI character portrait(s) — up to 4",
             type=["jpg", "jpeg", "png", "webp"],

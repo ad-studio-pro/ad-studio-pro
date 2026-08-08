@@ -62,25 +62,30 @@ def _prepare_with_openai(image_path, prompt, out_path, log=print):
 
 
 PREP_PROMPT = (
-    "Re-render this AI-generated image as a polished CGI / digital render. "
-    "PRESERVE THE ENTIRE IMAGE EXACTLY: same composition, same framing, same "
-    "background, same lighting mood, and EVERY person with the same identity — "
-    "same face shapes, hairstyles, skin tones, outfits, expressions, poses and "
-    "positions. Only change the rendering style: smooth, subtly stylized "
-    "digital-character look (not a raw photograph), so every person clearly "
+    "Re-render this AI-generated image as a high-end REALISTIC CGI render, like "
+    "a modern AAA game cinematic (Unreal Engine 5 look). PRESERVE THE ENTIRE "
+    "IMAGE EXACTLY: same composition, framing, background, lighting mood, and "
+    "EVERY person with the same identity — same face shapes, hairstyles, skin "
+    "tones, outfits, expressions, poses and positions. Keep fully realistic "
+    "human proportions and detail; only make the skin shading slightly smoother "
+    "and the finish subtly 'rendered' so it reads as a digital production, not "
+    "a photograph. Absolutely NOT a cartoon, NOT animated-film style. High "
+    "detail, no elements added or removed."
+), so every person clearly "
     "reads as a designed digital character rather than a photo of a real "
     "person. High detail, no elements added or removed."
 )
 
 
 STRONG_PREP_PROMPT = (
-    "Re-render this AI-generated image in a clearly STYLIZED high-end 3D "
-    "animated-film look: simplified skin shading, softened features, clean "
-    "cinematic lighting. PRESERVE THE ENTIRE IMAGE: same composition, framing, "
-    "background and every person with the same recognizable identity — same "
-    "face shapes, hairstyles, outfits, expressions, poses and positions. It "
-    "must be unmistakably a designed animated scene, NOT a photograph. High "
-    "detail, no elements added or removed."
+    "Re-render this AI-generated image as a clearly digital, stylized-REALISTIC "
+    "CGI cinematic — like a premium game cutscene: uniform smooth skin shading, "
+    "slightly simplified surface detail, clean cinematic lighting, a subtle "
+    "digital sheen. PRESERVE THE ENTIRE IMAGE: same composition, framing, "
+    "background, and every person with the same recognizable identity, REALISTIC "
+    "human proportions (normal-sized eyes and features). It must read as a "
+    "digital render, NOT a photograph — but absolutely NOT a cartoon, NOT "
+    "Pixar/animated-film style. High detail, no elements added or removed."
 )
 
 _PROMPTS = {"soft": PREP_PROMPT, "strong": STRONG_PREP_PROMPT}
