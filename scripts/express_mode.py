@@ -244,7 +244,8 @@ def render_express_ui(project_root: Path) -> None:
                     or k.startswith("sel_")
                     or k in ("stage2", "stage3", "stage4", "video_results",
                              "split_variant_paths", "split_variant_roles", "_autoname_sig",
-                             "sheet_variant_paths", "_sheets_src_sig", "_sheets_active")
+                             "sheet_variant_paths", "_sheets_src_sig", "_sheets_active",
+                             "ai_char_paths", "ai_char_confirmed")
                 ):
                     st.session_state.pop(k, None)
             st.rerun()
@@ -629,6 +630,67 @@ def render_express_ui(project_root: Path) -> None:
                     title = label if label else f"Image {idx+1}"
                     st.markdown(f"**@Image {idx+1} — {title}**")
                     st.code(build_product_asset_sheet_prompt(label, sheet_mode), language=None)
+
+    # ── AI character reference (AI-generated people as the on-screen creator) ──
+    with st.expander("🧑‍🎤 AI character reference (use an AI-generated person as the creator)", expanded=False):
+        st.caption(
+            "Upload AI-generated character portraits to drive a consistent on-screen creator "
+            "(the official Dreamina 'AI influencer' workflow). Seedance's filter blocks photos of "
+            "REAL people; AI characters normally pass. If a very photorealistic AI face gets blocked, "
+            "use 'Prepare AI characters' below — it re-renders the SAME character a touch less "
+            "photographic so it clears the filter."
+        )
+        _ai_confirm = st.checkbox(
+            "✅ I confirm these are AI-generated characters — not photos of real people.",
+            key="ai_char_confirmed",
+        )
+        _ai_files = st.file_uploader(
+            "AI character portrait(s) — up to 4",
+            type=["jpg", "jpeg", "png", "webp"],
+            accept_multiple_files=True,
+            key="ai_char_uploader",
+            disabled=not _ai_confirm,
+        )
+        if _ai_files and _ai_confirm:
+            _ai_dir = project_root / "assets" / "ai_characters"
+            _ai_dir.mkdir(parents=True, exist_ok=True)
+            _ai_paths = []
+            for _uf in _ai_files[:4]:
+                _pp = _ai_dir / _uf.name
+                _pp.write_bytes(_uf.getvalue())
+                _ai_paths.append(str(_pp))
+            st.session_state["ai_char_paths"] = _ai_paths
+            _cols = st.columns(min(len(_ai_paths), 4))
+            for _i, _ip in enumerate(_ai_paths):
+                with _cols[_i % 4]:
+                    st.image(_ip, width=110, caption=f"Character {_i+1}")
+
+            try:
+                from nano_banana import is_available as _nb_ok3
+                _nb3 = _nb_ok3()
+            except Exception:
+                _nb3 = False
+            if _nb3 and st.button("🪄 Prepare AI characters (pass the anti-deepfake filter)",
+                                   use_container_width=True, key="ai_prep_btn"):
+                import importlib as _il3
+                import ai_character_helper as _ach
+                _il3.reload(_ach)
+                with st.status("🧑‍🎤 Re-rendering AI characters...", expanded=True) as _achs:
+                    try:
+                        _prepped = _ach.prepare_many(_ai_paths, _ai_dir / "prepared", log=_achs.write)
+                        st.session_state["ai_char_paths"] = _prepped
+                        _achs.update(label="✅ Characters prepared — ready as references", state="complete")
+                        st.rerun()
+                    except Exception as _e3:
+                        _achs.update(label=f"❌ {_e3}", state="error", expanded=True)
+
+            st.info(
+                "These characters are attached to every video as extra reference images. "
+                "In your prompt, refer to the creator as the person from the reference so their "
+                "identity stays consistent."
+            )
+        elif not _ai_confirm:
+            st.session_state.pop("ai_char_paths", None)
 
     st.markdown("**🎥 Reference video (optional — up to 3, each ≤15 seconds)**")
     st.caption(
