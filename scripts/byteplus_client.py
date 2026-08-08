@@ -107,6 +107,19 @@ def submit_task(prompt, image_urls=None, video_urls=None, audio_urls=None,
 
     if response.status_code >= 400:
         body = response.text or ""
+        # Friendly hint: real-person filter on reference IMAGE (check FIRST —
+        # image errors also carry the generic "PrivacyInformation" code)
+        if "InputImageSensitiveContentDetected" in body or "input image" in body.lower():
+            raise RuntimeError(
+                "❌ Seedance blocked one or more reference IMAGES — its classifier "
+                "read them as photos of a real person.\n"
+                "💡 If these are AI characters: use '🪄 Prepare AI characters' (or let "
+                "the auto-retry run) — it re-renders the SAME character slightly "
+                "stylized so it clearly reads as a digital character.\n"
+                "Also make sure the same face image isn't uploaded twice (e.g. both as "
+                "a product image and as an AI character).\n\n"
+                f"Source: {body[:400]}"
+            )
         # Friendly hint: real-person filter on reference video
         if "InputVideoSensitiveContentDetected" in body or "PrivacyInformation" in body:
             raise RuntimeError(
@@ -121,12 +134,6 @@ def submit_task(prompt, image_urls=None, video_urls=None, audio_urls=None,
                 f"Source: {body[:400]}"
             )
         # Friendly hint: real-person filter on reference IMAGE
-        if "InputImageSensitiveContentDetected" in body:
-            raise RuntimeError(
-                "❌ Seedance blocked a reference image because it detected a real person's face.\n\n"
-                "💡 Use an image without identifiable faces, or blur the faces before uploading.\n\n"
-                f"Source: {body[:400]}"
-            )
         if ("ModelNotFound" in body or "model not found" in body.lower()
                 or ("InvalidParameter" in body and "model" in body.lower() and "seedance-2-5" in str(payload.get("model", "")))):
             raise RuntimeError(

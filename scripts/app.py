@@ -841,22 +841,37 @@ if videos_with_prompts:
 
             with st.status(f"🎬 Generating {len(todo)} videos on BytePlus...", expanded=True) as s4_status:
                 try:
-                    img_paths = [Path(ip) for ip in (st.session_state.get("image_paths") or []) if str(ip).strip()]
-                    # AI-character references (confirmed AI-generated people) join the image set
-                    if st.session_state.get("ai_char_confirmed") and st.session_state.get("ai_char_paths"):
-                        _ai_char_paths = [Path(ip) for ip in st.session_state["ai_char_paths"] if str(ip).strip()]
-                        img_paths = (img_paths + _ai_char_paths)[:9]
-                        if _ai_char_paths:
-                            s4_status.write(f"🧑‍🎤 {len(_ai_char_paths)} AI character reference(s) added")
+                    # Product images (deduped, AI-character files excluded — they get their own slot)
+                    _ai_char_src = [str(ip) for ip in (st.session_state.get("ai_char_paths") or [])
+                                    if st.session_state.get("ai_char_confirmed")]
+                    _seen = set()
+                    img_paths = []
+                    for ip in (st.session_state.get("image_paths") or []):
+                        sp = str(ip).strip()
+                        if sp and sp not in _seen and sp not in _ai_char_src:
+                            _seen.add(sp)
+                            img_paths.append(Path(sp))
                     if img_paths:
-                        s4_status.write(f"📤 Uploading {len(img_paths)} image(s) to imgbb (once)...")
+                        s4_status.write(f"📤 Uploading {len(img_paths)} product image(s) to imgbb (once)...")
                     else:
-                        s4_status.write("ℹ No product images — continuing with prompt + reference video only.")
-                    base_image_urls = []
+                        s4_status.write("ℹ No product images — continuing with prompt + references only.")
+                    product_image_urls = []
                     for idx, ip in enumerate(img_paths, 1):
                         url = upload_image(ip)
-                        base_image_urls.append(url)
+                        product_image_urls.append(url)
                         s4_status.write(f"  ✓ Image {idx}: {ip.name}")
+
+                    # AI-character references — uploaded separately so retries can
+                    # swap exactly these URLs without touching product images.
+                    ai_char_urls = []
+                    for idx, ip in enumerate(_ai_char_src, 1):
+                        if Path(ip).exists():
+                            ai_char_urls.append(upload_image(Path(ip)))
+                            s4_status.write(f"  🧑‍🎤 Character {idx}: {Path(ip).name}")
+                    if ai_char_urls:
+                        s4_status.write(f"🧑‍🎤 {len(ai_char_urls)} AI character reference(s) attached")
+
+                    base_image_urls = (product_image_urls + ai_char_urls)[:9]
                     base_image_url = base_image_urls[0] if base_image_urls else None  # backward-compat
 
                     # Reference audio (Audio Studio voice + uploaded MP3s) — once per batch
@@ -939,55 +954,49 @@ if videos_with_prompts:
                                 for attempt in range(2):
                                     attempt_label = "" if attempt == 0 else f" (retry {attempt})"
                                     s4_status.write(f"  📨 Sending chunk {ci}{attempt_label} to Seedance ({resolution}, {ratio}, {chunk_dur}s)...")
-                                    try:
-                                        task_id = submit_task(
-                                            prompt=chunk_prompt,
-                                            model=model_for_engine(engine),
-                                            image_urls=chunk_image_urls,
-                                            video_urls=chunk_video_refs,
-                                            audio_urls=chunk_audio_refs,
-                                            ratio=ratio,
-                                            duration=chunk_dur,
-                                            generate_audio=video.get("generate_audio", True),
-                                            watermark=False,
-                                            extra_payload={"resolution": resolution},
-                                        )
-                                    except RuntimeError as _sub_e:
-                                        # Filter blocked a photorealistic AI face — re-render the
-                                        # confirmed AI characters a touch less photographic and retry once.
-                                        if ("InputImageSensitiveContentDetected" in str(_sub_e)
-                                                and st.session_state.get("ai_char_confirmed")
-                                                and st.session_state.get("ai_char_paths")):
-                                            s4_status.write("  🛡 Filter flagged an AI face — preparing characters and retrying...")
-                                            try:
+                                    # Escalating submit: original chars → soft prepare → strong stylize
+                                    _prep_levels = [None, "soft", "strong"]
+                                    task_id = None
+                                    for _lvl_i, _lvl in enumerate(_prep_levels):
+                                        try:
+                                            if _lvl is not None:
+                                                s4_status.write(
+                                                    f"  🛡 Filter flagged an AI face — re-rendering characters "
+                                                    f"({_lvl}) and retrying..."
+                                                )
                                                 import ai_character_helper as _ach2
                                                 _prep = _ach2.prepare_many(
                                                     st.session_state["ai_char_paths"],
                                                     PROJECT_ROOT / "assets" / "ai_characters" / "prepared",
-                                                    log=s4_status.write)
+                                                    log=s4_status.write, strength=_lvl)
                                                 st.session_state["ai_char_paths"] = _prep
-                                                _new_urls = [upload_image(Path(pp)) for pp in _prep]
-                                                # replace the tail AI-char urls in the reference set
-                                                base_prod = [u for u in base_image_urls
-                                                             if u not in st.session_state.get("_ai_char_urls", [])]
-                                                base_image_urls = (base_prod + _new_urls)[:9]
-                                                st.session_state["_ai_char_urls"] = _new_urls
+                                                ai_char_urls = [upload_image(Path(pp)) for pp in _prep]
+                                                base_image_urls = (product_image_urls + ai_char_urls)[:9]
                                                 chunk_image_urls = list(base_image_urls)
-                                                task_id = submit_task(
-                                                    prompt=chunk_prompt,
-                                                    model=model_for_engine(engine),
-                                                    image_urls=chunk_image_urls,
-                                                    video_urls=chunk_video_refs,
-                                                    audio_urls=chunk_audio_refs,
-                                                    ratio=ratio, duration=chunk_dur,
-                                                    generate_audio=video.get("generate_audio", True),
-                                                    watermark=False,
-                                                    extra_payload={"resolution": resolution},
-                                                )
-                                            except Exception as _retry_e:
-                                                raise RuntimeError(f"AI-character retry failed: {_retry_e}") from _sub_e
-                                        else:
+                                            task_id = submit_task(
+                                                prompt=chunk_prompt,
+                                                model=model_for_engine(engine),
+                                                image_urls=chunk_image_urls,
+                                                video_urls=chunk_video_refs,
+                                                audio_urls=chunk_audio_refs,
+                                                ratio=ratio,
+                                                duration=chunk_dur,
+                                                generate_audio=video.get("generate_audio", True),
+                                                watermark=False,
+                                                extra_payload={"resolution": resolution},
+                                            )
+                                            break  # submitted successfully
+                                        except RuntimeError as _sub_e:
+                                            _is_face_block = ("InputImageSensitiveContentDetected" in str(_sub_e)
+                                                              or "reference IMAGES" in str(_sub_e))
+                                            _has_chars = (st.session_state.get("ai_char_confirmed")
+                                                          and st.session_state.get("ai_char_paths"))
+                                            if (_is_face_block and _has_chars
+                                                    and _lvl_i < len(_prep_levels) - 1):
+                                                continue  # escalate to the next prepare level
                                             raise
+                                    if task_id is None:
+                                        raise RuntimeError("Submit failed after all AI-character retries")
                                     last_task_id = task_id
                                     try:
                                         from task_queue import add_task as _tq_add
