@@ -209,6 +209,7 @@ def _save_express_plan(valid_prompts, gen_audio):
             "aspect_ratio": p.get("aspect_ratio", "9:16"),
             "generate_audio": bool(gen_audio),
             "resolution": st.session_state.get("ex_res", "720p"),
+            "engine": "2.5" if st.session_state.get("ex_engine", "").startswith("🚀") else "2.0",
             "prompt": p["prompt"].strip(),
         })
     new_plan = {
@@ -249,6 +250,15 @@ def render_express_ui(project_root: Path) -> None:
             st.rerun()
     with info_col:
         st.caption("💡 'Full reset' clears everything and starts from scratch. Useful if old prompts seem stuck.")
+
+    ex_engine = st.radio(
+        "Video engine",
+        ["🎬 Seedance 2.0 — stable (15s per take)",
+         "🚀 Seedance 2.5 — NEW: 30s in a single take, better consistency"],
+        index=0, horizontal=True, key="ex_engine",
+        help="2.5 generates up to 30s in one take (no stitching!) and improves timing/consistency. "
+             "If your ModelArk account doesn't have 2.5 access yet you'll get a clear message — switch back to 2.0.",
+    )
 
     col_n, col_d, col_r, col_q = st.columns([1, 1, 1, 1])
     with col_q:

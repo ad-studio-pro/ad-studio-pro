@@ -48,6 +48,21 @@ def _model_id():
     return _get("SEEDANCE_MODEL_ID", "dreamina-seedance-2-0-260128")
 
 
+def _model_id_25():
+    """Seedance 2.5 — native 30s single take. Same ARK endpoint + key."""
+    return _get("SEEDANCE_MODEL_ID_25", "dreamina-seedance-2-5-260628")
+
+
+def model_for_engine(engine: str) -> str:
+    """engine: "2.5" -> Seedance 2.5 model id, anything else -> 2.0."""
+    return _model_id_25() if str(engine) == "2.5" else _model_id()
+
+
+def max_single_duration(engine: str) -> int:
+    """Longest clip one generation can produce: 2.5 = 30s, 2.0 = 15s."""
+    return 30 if str(engine) == "2.5" else 15
+
+
 def _headers():
     return {
         "Authorization": f"Bearer {_api_key()}",
@@ -98,7 +113,9 @@ def submit_task(prompt, image_urls=None, video_urls=None, audio_urls=None,
                 "❌ Seedance blocked the reference video because it detected a real person's face "
                 "(ByteDance's anti-deepfake mechanism — cannot be bypassed).\n\n"
                 "💡 Solutions:\n"
-                "  1. Use a reference video without real faces (product only / animation / abstract)\n"
+                "  1. Use a reference video without realistic faces (product only / animation / abstract).\n"
+                "     Note: AI-generated characters usually pass, but VERY photorealistic AI faces can\n"
+                "     still trigger the filter — regenerate the character slightly stylized if needed\n"
                 "  2. Remove the reference video entirely — Seedance will generate from the prompt+image\n"
                 "  3. Blur/crop faces out of the video in CapCut/Premiere before uploading\n\n"
                 f"Source: {body[:400]}"
@@ -109,6 +126,15 @@ def submit_task(prompt, image_urls=None, video_urls=None, audio_urls=None,
                 "❌ Seedance blocked a reference image because it detected a real person's face.\n\n"
                 "💡 Use an image without identifiable faces, or blur the faces before uploading.\n\n"
                 f"Source: {body[:400]}"
+            )
+        if ("ModelNotFound" in body or "model not found" in body.lower()
+                or ("InvalidParameter" in body and "model" in body.lower() and "seedance-2-5" in str(payload.get("model", "")))):
+            raise RuntimeError(
+                "❌ Seedance 2.5 is not enabled on your ModelArk account yet "
+                "(the API opens gradually after the Jul 31 launch).\n"
+                "💡 Switch the engine back to Seedance 2.0 and try again, or check "
+                "the BytePlus console → ModelArk → Model list for 2.5 availability.\n\n"
+                f"Source: {body[:300]}"
             )
         raise RuntimeError(f"BytePlus submit failed [{response.status_code}]: {body}")
 

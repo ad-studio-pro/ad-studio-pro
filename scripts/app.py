@@ -34,7 +34,8 @@ from auth_gate import require_login, render_logout_button
 _user = require_login()  # blocks via st.stop() if not authorized
 
 # Core modules
-from byteplus_client import submit_task, poll_task, download_video, extract_video_url
+from byteplus_client import (submit_task, poll_task, download_video,
+                             extract_video_url, model_for_engine, max_single_duration)
 from upload_image import upload_image, IMGBB_API_KEY
 from upload_video import upload_video
 from video_stitcher import extract_last_frame, concat_videos, is_ffmpeg_available
@@ -865,18 +866,21 @@ if videos_with_prompts:
                             ratio = video.get("aspect_ratio", "9:16")
                             resolution = video.get("resolution", "720p")
 
-                            # Plan chunks: ≤15 = single, >15 = N×15s + remainder
-                            # Seedance max per request = 15s, min per request = 5s
-                            if duration <= 15:
+                            # Engine-aware chunk planning:
+                            #   Seedance 2.0 → up to 15s per request
+                            #   Seedance 2.5 → up to 30s per request (single take!)
+                            engine = str(video.get("engine", "2.0"))
+                            max_chunk = max_single_duration(engine)
+                            if duration <= max_chunk:
                                 chunk_durations = [duration]
                             else:
-                                full_chunks = duration // 15
-                                remainder = duration % 15
-                                chunk_durations = [15] * full_chunks
+                                full_chunks = duration // max_chunk
+                                remainder = duration % max_chunk
+                                chunk_durations = [max_chunk] * full_chunks
                                 if remainder >= 5:
                                     chunk_durations.append(remainder)
                                 elif remainder > 0:
-                                    chunk_durations[-1] = 15 - (5 - remainder)
+                                    chunk_durations[-1] = max_chunk - (5 - remainder)
                                     chunk_durations.append(5)
                             multi_chunk = len(chunk_durations) > 1
 
@@ -931,6 +935,7 @@ if videos_with_prompts:
                                     s4_status.write(f"  📨 Sending chunk {ci}{attempt_label} to Seedance ({resolution}, {ratio}, {chunk_dur}s)...")
                                     task_id = submit_task(
                                         prompt=chunk_prompt,
+                                        model=model_for_engine(engine),
                                         image_urls=chunk_image_urls,
                                         video_urls=chunk_video_refs,
                                         audio_urls=chunk_audio_refs,
