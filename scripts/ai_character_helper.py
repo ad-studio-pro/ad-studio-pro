@@ -22,24 +22,25 @@ from nano_banana import generate_scene_image, is_available  # noqa: F401
 
 
 PREP_PROMPT = (
-    "Re-render this AI-generated character portrait as a clean, consistent "
-    "digital character render. Keep the SAME identity exactly: same face shape, "
-    "same hairstyle and color, same skin tone, same outfit, same expression and "
-    "pose. Render it as a polished CGI / digital-character portrait — smooth, "
-    "even studio lighting, subtly stylized (not a raw phone photo), so it clearly "
-    "reads as a designed digital character rather than a photograph of a real "
-    "person. Single centered portrait, neutral clean background, high detail."
+    "Re-render this AI-generated image as a polished CGI / digital render. "
+    "PRESERVE THE ENTIRE IMAGE EXACTLY: same composition, same framing, same "
+    "background, same lighting mood, and EVERY person with the same identity — "
+    "same face shapes, hairstyles, skin tones, outfits, expressions, poses and "
+    "positions. Only change the rendering style: smooth, subtly stylized "
+    "digital-character look (not a raw photograph), so every person clearly "
+    "reads as a designed digital character rather than a photo of a real "
+    "person. High detail, no elements added or removed."
 )
 
 
 STRONG_PREP_PROMPT = (
-    "Re-render this AI-generated character as a clearly STYLIZED 3D animated "
-    "character — think high-end animated-film look: simplified skin shading, "
-    "slightly larger eyes, softened features, clean rim lighting. Keep the SAME "
-    "recognizable identity: same face shape, same hairstyle and color, same "
-    "outfit, same expression and pose. It must be unmistakably a designed "
-    "animated character, NOT a photograph. Single centered portrait, neutral "
-    "clean background, high detail."
+    "Re-render this AI-generated image in a clearly STYLIZED high-end 3D "
+    "animated-film look: simplified skin shading, softened features, clean "
+    "cinematic lighting. PRESERVE THE ENTIRE IMAGE: same composition, framing, "
+    "background and every person with the same recognizable identity — same "
+    "face shapes, hairstyles, outfits, expressions, poses and positions. It "
+    "must be unmistakably a designed animated scene, NOT a photograph. High "
+    "detail, no elements added or removed."
 )
 
 _PROMPTS = {"soft": PREP_PROMPT, "strong": STRONG_PREP_PROMPT}
