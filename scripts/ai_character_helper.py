@@ -71,9 +71,6 @@ PREP_PROMPT = (
     "and the finish subtly 'rendered' so it reads as a digital production, not "
     "a photograph. Absolutely NOT a cartoon, NOT animated-film style. High "
     "detail, no elements added or removed."
-), so every person clearly "
-    "reads as a designed digital character rather than a photo of a real "
-    "person. High detail, no elements added or removed."
 )
 
 
