@@ -245,7 +245,7 @@ def render_express_ui(project_root: Path) -> None:
                     or k in ("stage2", "stage3", "stage4", "video_results",
                              "split_variant_paths", "split_variant_roles", "_autoname_sig",
                              "sheet_variant_paths", "_sheets_src_sig", "_sheets_active",
-                             "ai_char_paths", "ai_char_confirmed")
+                             "ai_char_paths", "ai_char_confirmed", "ai_char_originals", "ai_char_prepared")
                 ):
                     st.session_state.pop(k, None)
             st.rerun()
@@ -674,27 +674,72 @@ def render_express_ui(project_root: Path) -> None:
 
             try:
                 from nano_banana import is_available as _nb_ok3
-                _nb3 = _nb_ok3()
+                from ai_character_helper import is_openai_available as _oai_ok3
+                _nb3 = _nb_ok3() or _oai_ok3()
+                _engine_note = "GPT Image 2" if _oai_ok3() else "Nano Banana"
             except Exception:
                 _nb3 = False
-            if _nb3 and st.button("🪄 Prepare AI characters (pass the anti-deepfake filter)",
-                                   use_container_width=True, key="ai_prep_btn"):
-                import importlib as _il3
-                import ai_character_helper as _ach
-                _il3.reload(_ach)
-                with st.status("🧑‍🎤 Re-rendering AI characters...", expanded=True) as _achs:
-                    try:
-                        _prepped = _ach.prepare_many(_ai_paths, _ai_dir / "prepared", log=_achs.write)
-                        st.session_state["ai_char_paths"] = _prepped
-                        _achs.update(label="✅ Characters prepared — ready as references", state="complete")
+                _engine_note = "Nano Banana"
+
+            if _nb3:
+                st.caption(f"Prep engine: **{_engine_note}**  ·  keep the SAME originals — you can re-run at a different strength.")
+                _pcol1, _pcol2 = st.columns([2, 1])
+                with _pcol1:
+                    _prep_strength = st.select_slider(
+                        "Digital-render strength (higher = passes more easily, less photoreal)",
+                        options=["realistic", "medium", "stylized"],
+                        value="realistic", key="ai_prep_strength",
+                        help="Start at 'realistic'. If Seedance still blocks it, step up one level and preview again.",
+                    )
+                with _pcol2:
+                    st.write("")
+                    _do_prep = st.button("🪄 Prepare & preview", use_container_width=True, key="ai_prep_btn")
+
+                _lvl_map = {"realistic": "soft", "medium": "soft", "stylized": "strong"}
+                if _do_prep:
+                    import importlib as _il3
+                    import ai_character_helper as _ach
+                    _il3.reload(_ach)
+                    # keep the untouched originals so every preview re-renders from source
+                    _orig = st.session_state.get("ai_char_originals") or _ai_paths
+                    st.session_state["ai_char_originals"] = _orig
+                    with st.status("🧑‍🎤 Re-rendering AI characters...", expanded=True) as _achs:
+                        try:
+                            _prepped = _ach.prepare_many(
+                                _orig, _ai_dir / "prepared", log=_achs.write,
+                                strength=_lvl_map[_prep_strength])
+                            st.session_state["ai_char_prepared"] = _prepped
+                            st.session_state["ai_char_paths"] = _prepped
+                            _achs.update(label="✅ Preview ready — check it below", state="complete")
+                            st.rerun()
+                        except Exception as _e3:
+                            _achs.update(label=f"❌ {_e3}", state="error", expanded=True)
+
+                # Show the prepared preview + accept/revert controls
+                _prev = st.session_state.get("ai_char_prepared")
+                if _prev and all(Path(pp).exists() for pp in _prev):
+                    st.markdown("**Preview (what Seedance will receive):**")
+                    _pc = st.columns(min(len(_prev), 4))
+                    for _i, _pp in enumerate(_prev):
+                        with _pc[_i % 4]:
+                            st.image(_pp, width=140, caption=f"Prepared {_i+1}")
+                    st.success(
+                        "If this looks good, just generate — it's already the active reference. "
+                        "Too blocked? Raise the strength and press Prepare again. "
+                        "Too stylized? Lower it, or revert to the originals below."
+                    )
+                    if st.button("↩ Revert to original uploads", key="ai_revert_btn"):
+                        st.session_state["ai_char_paths"] = st.session_state.get("ai_char_originals", _ai_paths)
+                        st.session_state.pop("ai_char_prepared", None)
                         st.rerun()
-                    except Exception as _e3:
-                        _achs.update(label=f"❌ {_e3}", state="error", expanded=True)
 
             st.info(
-                "These characters are attached to every video as extra reference images. "
+                "These characters are attached to every video as reference images. "
                 "In your prompt, refer to the creator as the person from the reference so their "
-                "identity stays consistent."
+                "identity stays consistent.\n\n"
+                "💡 Note: I can't reach Seedance's filter from here to test — this preview lets YOU "
+                "check the look and try it live. Best results come from generating the character "
+                "with a light digital-render style from the start."
             )
         elif not _ai_confirm:
             st.session_state.pop("ai_char_paths", None)
