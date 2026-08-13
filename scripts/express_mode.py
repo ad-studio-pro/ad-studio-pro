@@ -232,7 +232,7 @@ def _render_video_editor(project_root: Path) -> None:
             "Uses Seedance 2.5 (needs 2.5 API access on your ModelArk account)."
         )
         _ve_file = st.file_uploader(
-            "Source video (MP4/MOV, ≤15s works best)",
+            "Source video = @Video 1 (MP4/MOV, ≤15s works best)",
             type=["mp4", "mov", "webm"], key="ve_uploader",
         )
         _ve_mode = st.radio(
@@ -241,11 +241,38 @@ def _render_video_editor(project_root: Path) -> None:
              "➕ Extend (continue past the last frame)"],
             index=0, horizontal=True, key="ve_mode",
         )
+
+        # Reference images (@Image 1..) — e.g. the new jacket / product / background
+        st.markdown("**🖼 Reference images (optional) — @Image 1, @Image 2 …**")
+        st.caption(
+            "Upload what you want to bring INTO the video (a garment, a product, a "
+            "background) and point to it in the text — e.g. "
+            "*\"change the shirt in @Video 1 to the jacket in @Image 1\"*."
+        )
+        _ve_imgs = st.file_uploader(
+            "Reference images (up to 9)",
+            type=["jpg", "jpeg", "png", "webp"], accept_multiple_files=True,
+            key="ve_img_uploader",
+        )
+        if _ve_imgs:
+            _vc = st.columns(min(len(_ve_imgs), 5))
+            for _i, _uf in enumerate(_ve_imgs[:9]):
+                with _vc[_i % 5]:
+                    st.image(_uf.getvalue(), width=90, caption=f"@Image {_i+1}")
+
+        # Extra reference videos (@Video 2..) — style/motion source
+        st.markdown("**🎥 Extra reference videos (optional) — @Video 2, @Video 3**")
+        _ve_extra_vids = st.file_uploader(
+            "Extra clips (up to 2) — style / motion reference",
+            type=["mp4", "mov", "webm"], accept_multiple_files=True,
+            key="ve_extra_vid_uploader",
+        )
+
         _ve_instr = st.text_area(
             "Describe the change" if str(st.session_state.get("ve_mode", "")).startswith("✏️")
             else "Describe what happens next",
             height=90, key="ve_instr",
-            placeholder="e.g. Replace the coffee cup in his hand with a water bottle. Keep everything else identical.",
+            placeholder="e.g. Change the shirt in @Video 1 to the jacket in @Image 1. Keep everything else identical.",
         )
         _c1, _c2, _c3 = st.columns(3)
         with _c1:
@@ -271,10 +298,23 @@ def _render_video_editor(project_root: Path) -> None:
             _src.write_bytes(_ve_file.getvalue())
             _ts = _dtv.now().strftime("%Y%m%d_%H%M%S")
             _out = project_root / "outputs" / "videos" / f"edited_{_ts}.mp4"
+            # Save reference images / extra videos to disk
+            _ve_img_paths = []
+            for _uf in (_ve_imgs or [])[:9]:
+                _ip = _src_dir / f"ref_{_ts}_{_uf.name}"
+                _ip.write_bytes(_uf.getvalue())
+                _ve_img_paths.append(str(_ip))
+            _ve_vid_paths = []
+            for _uf in (_ve_extra_vids or [])[:2]:
+                _vp = _src_dir / f"refvid_{_ts}_{_uf.name}"
+                _vp.write_bytes(_uf.getvalue())
+                _ve_vid_paths.append(str(_vp))
             with st.status("🎞 Editing via Seedance 2.5...", expanded=True) as _vs:
                 try:
                     _res = _vev.edit_video(
                         _src, _ve_instr.strip(), _out,
+                        image_paths=_ve_img_paths or None,
+                        extra_video_paths=_ve_vid_paths or None,
                         ratio=_ve_ratio, duration=int(_ve_dur), resolution=_ve_res,
                         generate_audio=_ve_audio,
                         extend=str(st.session_state.get("ve_mode", "")).startswith("➕"),
