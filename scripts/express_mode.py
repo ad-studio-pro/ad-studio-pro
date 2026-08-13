@@ -222,6 +222,74 @@ def _save_express_plan(valid_prompts, gen_audio):
     return new_plan
 
 
+def _render_video_editor(project_root: Path) -> None:
+    """Seedance 2.5 V2V — edit or extend an already-generated video."""
+    with st.expander("🎞 Edit an existing video (Seedance 2.5) — replace / remove / change, or extend", expanded=False):
+        st.caption(
+            "Upload a video you already made and describe a change — e.g. "
+            "\"replace the gun with a book\", \"remove the logo on the wall\", "
+            "\"change the shirt to blue\" — or extend it past its last frame. "
+            "Uses Seedance 2.5 (needs 2.5 API access on your ModelArk account)."
+        )
+        _ve_file = st.file_uploader(
+            "Source video (MP4/MOV, ≤15s works best)",
+            type=["mp4", "mov", "webm"], key="ve_uploader",
+        )
+        _ve_mode = st.radio(
+            "Operation",
+            ["✏️ Edit (change something in the video)",
+             "➕ Extend (continue past the last frame)"],
+            index=0, horizontal=True, key="ve_mode",
+        )
+        _ve_instr = st.text_area(
+            "Describe the change" if str(st.session_state.get("ve_mode", "")).startswith("✏️")
+            else "Describe what happens next",
+            height=90, key="ve_instr",
+            placeholder="e.g. Replace the coffee cup in his hand with a water bottle. Keep everything else identical.",
+        )
+        _c1, _c2, _c3 = st.columns(3)
+        with _c1:
+            _ve_dur = st.number_input("Output seconds", min_value=4, max_value=30,
+                                      value=5, step=1, key="ve_dur")
+        with _c2:
+            _ve_ratio = st.selectbox("Aspect", ["9:16", "16:9", "1:1", "4:3", "3:4"],
+                                     index=0, key="ve_ratio")
+        with _c3:
+            _ve_res = st.selectbox("Quality", ["720p", "1080p", "4k"], index=0, key="ve_res")
+        _ve_audio = st.checkbox("🔊 Generate audio", value=True, key="ve_audio")
+
+        _disabled = not (_ve_file and _ve_instr.strip())
+        if st.button("🎬 Generate edited video", type="primary",
+                      use_container_width=True, disabled=_disabled, key="ve_go"):
+            import importlib as _ilv
+            import video_edit as _vev
+            _ilv.reload(_vev)
+            from datetime import datetime as _dtv
+            _src_dir = project_root / "assets" / "edit_src"
+            _src_dir.mkdir(parents=True, exist_ok=True)
+            _src = _src_dir / _ve_file.name
+            _src.write_bytes(_ve_file.getvalue())
+            _ts = _dtv.now().strftime("%Y%m%d_%H%M%S")
+            _out = project_root / "outputs" / "videos" / f"edited_{_ts}.mp4"
+            with st.status("🎞 Editing via Seedance 2.5...", expanded=True) as _vs:
+                try:
+                    _res = _vev.edit_video(
+                        _src, _ve_instr.strip(), _out,
+                        ratio=_ve_ratio, duration=int(_ve_dur), resolution=_ve_res,
+                        generate_audio=_ve_audio,
+                        extend=str(st.session_state.get("ve_mode", "")).startswith("➕"),
+                        log=_vs.write,
+                    )
+                    _vs.update(label="✅ Edited video ready", state="complete")
+                    st.video(str(_res))
+                    with open(_res, "rb") as _f:
+                        st.download_button("⬇️ Download edited video", _f.read(),
+                                           file_name=_res.name, mime="video/mp4",
+                                           key="ve_dl")
+                except Exception as _e:
+                    _vs.update(label=f"❌ {_e}", state="error", expanded=True)
+
+
 def render_express_ui(project_root: Path) -> None:
     """Render the Express UI. Populates st.session_state['stage3'] live."""
     st.header("⚡ Express — Prompts → Video")
@@ -229,6 +297,8 @@ def render_express_ui(project_root: Path) -> None:
         "Write your prompts directly (your own / from Claude / from ChatGPT). "
         "Optional: upload product images. Click generate — that's it."
     )
+
+    _render_video_editor(project_root)
 
     # Big visible "Reset" button — clears all Express state so the user can
     # start over without confusion.
