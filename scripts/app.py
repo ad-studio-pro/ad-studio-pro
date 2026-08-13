@@ -15,6 +15,16 @@ from datetime import datetime, timedelta
 import streamlit as st
 import importlib
 
+
+def _safe_reload(mod):
+    """Hot-reload a module, but never let a reload hiccup crash the app.
+    On Streamlit Cloud importlib.reload can raise KeyError intermittently;
+    if it does, we keep the already-imported version."""
+    try:
+        importlib.reload(mod)
+    except Exception:
+        pass
+
 # ── Streamlit Cloud → push every secret into os.environ BEFORE we import
 # any of our own modules, so their `os.getenv(...)` calls find the values
 # (otherwise they snapshot an empty value at import time).
@@ -50,7 +60,7 @@ from stage2_plan import ALL_FORMATS, compute_format_split
 
 # Hot-reload pipeline modules on every script run
 for mod in (pg, stage1_runner, stage2_runner, stage3_runner):
-    importlib.reload(mod)
+    _safe_reload(mod)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 OUTPUTS_DIR = PROJECT_ROOT / "outputs"
@@ -63,9 +73,9 @@ st.set_page_config(page_title="Ad Studio Pro", page_icon="🎬", layout="wide",
 # imported modules cached in the running process; without this, new functions
 # in ui_theme raise ImportError until a manual reboot.
 import anthropic_client as _anthropic_mod
-importlib.reload(_anthropic_mod)
+_safe_reload(_anthropic_mod)
 import ui_theme as _ui_theme_mod
-importlib.reload(_ui_theme_mod)
+_safe_reload(_ui_theme_mod)
 from ui_theme import inject_theme, render_hero, render_stepper, compute_full_pipeline_steps
 inject_theme()
 render_hero(_user.get("email", ""))
@@ -157,14 +167,14 @@ render_logout_button()
 
 # Voice mode (Seed Audio 1.0). If active, it takes over the whole page.
 import audio_studio as _audio_studio_mod
-importlib.reload(_audio_studio_mod)
+_safe_reload(_audio_studio_mod)
 from audio_studio import maybe_render_audio_studio
 if maybe_render_audio_studio(PROJECT_ROOT):
     st.stop()
 
 # Express mode (paste prompts → videos). Renders mode selector + Express UI.
 import express_mode as _express_mode_mod
-importlib.reload(_express_mode_mod)
+_safe_reload(_express_mode_mod)
 from express_mode import maybe_render_express
 IS_EXPRESS = maybe_render_express(PROJECT_ROOT)
 
@@ -734,7 +744,7 @@ st.caption("Sends the written prompts to Seedance and gets MP4s back. You can ge
 
 # Reference audio (music / voiceover) — shared by Express + Full pipeline.
 import ref_audio_helper as _ref_audio_mod
-importlib.reload(_ref_audio_mod)
+_safe_reload(_ref_audio_mod)
 from ref_audio_helper import render_ref_audio_ui, get_ref_audio_urls
 render_ref_audio_ui(PROJECT_ROOT)
 
