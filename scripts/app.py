@@ -908,8 +908,11 @@ if videos_with_prompts:
                                     chunk_durations.append(5)
                             multi_chunk = len(chunk_durations) > 1
 
+                            if not multi_chunk and duration > 15:
+                                s4_status.write(f"  🎬 Seedance {engine}: {duration}s in ONE take (no stitching)")
+
                             if multi_chunk and not is_ffmpeg_available():
-                                s4_status.write(f"  ⚠ {video['id']} needs ffmpeg ({duration}s>15) — skipping")
+                                s4_status.write(f"  ⚠ {video['id']} needs ffmpeg ({duration}s > {max_chunk}s per take) — skipping")
                                 continue
 
                             chunk_videos = []

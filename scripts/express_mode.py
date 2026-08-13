@@ -370,6 +370,13 @@ def render_express_ui(project_root: Path) -> None:
         help="2.5 generates up to 30s in one take (no stitching!) and improves timing/consistency. "
              "If your ModelArk account doesn't have 2.5 access yet you'll get a clear message — switch back to 2.0.",
     )
+    # Longest clip a single generation can make on the chosen engine
+    _single_take_max = 30 if ex_engine.startswith("🚀") else 15
+    def _dur_label(x):
+        if x <= _single_take_max:
+            return f"{x}s" + (" · single take ✓" if x > 15 else "")
+        n = (x + _single_take_max - 1) // _single_take_max
+        return f"{x}s (×{n} chunks, stitched)"
 
     col_n, col_d, col_r, col_q = st.columns([1, 1, 1, 1])
     with col_q:
@@ -392,7 +399,7 @@ def render_express_ui(project_root: Path) -> None:
         ex_default_dur = st.selectbox(
             "Default duration (seconds)",
             [5, 8, 10, 15, 20, 25, 30, 40, 45, 60], index=3,
-            format_func=lambda x: f"{x}s" + (f" (×{(x + 14) // 15} chunks)" if x > 15 else ""),
+            format_func=_dur_label,
             key="ex_dur",
         )
     with col_r:
@@ -630,7 +637,8 @@ def render_express_ui(project_root: Path) -> None:
                     options=_dur_opts,
                     value=_top_dur if _top_dur in _dur_opts else 15,
                     key="ex_gen_dur",
-                    help="Over 15 seconds = the video is generated in several chunks stitched together automatically.",
+                    help=(f"On {'Seedance 2.5' if _single_take_max == 30 else 'Seedance 2.0'} a single take covers up to "
+                          f"{_single_take_max}s. Longer than that is generated in chunks and stitched automatically."),
                 )
                 _per_variant = max(1, (int(gen_dur) - 4) // max(1, len(ex_image_paths)))
                 st.caption(
