@@ -134,6 +134,18 @@ def submit_task(prompt, image_urls=None, video_urls=None, audio_urls=None,
                 f"Source: {body[:400]}"
             )
         # Friendly hint: real-person filter on reference IMAGE
+        # Friendly hint: resolution not supported by the chosen model
+        _low = body.lower()
+        if ("resolution" in _low and ("invalidparameter" in _low or "not support" in _low
+                                       or "unsupported" in _low)):
+            _res = str((extra_payload or {}).get("resolution", "?"))
+            raise RuntimeError(
+                f"❌ Seedance rejected the resolution '{_res}' for this model.\n"
+                "💡 Step down one level (1080p → 720p → 480p) in the 'Video quality' box, "
+                "or switch engine — resolution support differs between Seedance 2.0 and 2.5 "
+                "and changes as ByteDance rolls out updates.\n\n"
+                f"Source: {body[:300]}"
+            )
         if ("ModelNotFound" in body or "model not found" in body.lower()
                 or ("InvalidParameter" in body and "model" in body.lower() and "seedance-2-5" in str(payload.get("model", "")))):
             raise RuntimeError(

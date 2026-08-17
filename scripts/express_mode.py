@@ -282,7 +282,7 @@ def _render_video_editor(project_root: Path) -> None:
             _ve_ratio = st.selectbox("Aspect", ["9:16", "16:9", "1:1", "4:3", "3:4"],
                                      index=0, key="ve_ratio")
         with _c3:
-            _ve_res = st.selectbox("Quality", ["720p", "1080p", "4k"], index=0, key="ve_res")
+            _ve_res = st.selectbox("Quality", ["480p", "720p", "1080p"], index=1, key="ve_res")
         _ve_audio = st.checkbox("🔊 Generate audio", value=True, key="ve_audio")
 
         _disabled = not (_ve_file and _ve_instr.strip())
@@ -380,15 +380,22 @@ def render_express_ui(project_root: Path) -> None:
 
     col_n, col_d, col_r, col_q = st.columns([1, 1, 1, 1])
     with col_q:
+        _res_opts = (["480p", "720p", "1080p"] if _single_take_max == 30
+                     else ["720p", "1080p", "4k"])
+        _res_labels = {
+            "480p": "480p — draft / cheapest",
+            "720p": "720p — fast and cheap (default)",
+            "1080p": "1080p — Full HD",
+            "4k": "4K — maximum quality (expensive/slow)",
+        }
         ex_resolution = st.selectbox(
             "Video quality",
-            ["720p", "1080p", "4k"],
-            index=0,
+            _res_opts,
+            index=_res_opts.index("720p"),
             key="ex_res",
-            format_func=lambda x: {"720p": "720p — fast and cheap (default)",
-                                    "1080p": "1080p — Full HD",
-                                    "4k": "4K — maximum quality (expensive/slow)"}[x],
-            help="Applies to all videos in the session. 1080p/4K cost more credits and take longer.",
+            format_func=lambda x: _res_labels[x],
+            help=("Options follow the selected engine. Higher resolutions cost more "
+                  "credits and take longer. If the API rejects a resolution, step down one level."),
         )
     with col_n:
         ex_n = st.number_input(
