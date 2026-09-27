@@ -783,7 +783,7 @@ try:
 except Exception:
     pass
 
-s4_disabled = not st.session_state.get("stage3") or not IMGBB_API_KEY
+s4_disabled = not st.session_state.get("stage3")
 videos_with_prompts = []
 if st.session_state.get("stage3"):
     videos_with_prompts = [v for v in st.session_state["stage3"].get("videos", []) if v.get("prompt")]
@@ -867,7 +867,7 @@ if videos_with_prompts:
                         s4_status.write("ℹ No product images — continuing with prompt + references only.")
                     product_image_urls = []
                     for idx, ip in enumerate(img_paths, 1):
-                        url = upload_image(ip)
+                        url = upload_image(ip, log=s4_status.write)
                         product_image_urls.append(url)
                         s4_status.write(f"  ✓ Image {idx}: {ip.name}")
 
