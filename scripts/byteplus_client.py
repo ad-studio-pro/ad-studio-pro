@@ -105,6 +105,27 @@ def submit_task(prompt, image_urls=None, video_urls=None, audio_urls=None,
     # returning a task_id; 30s wasn't enough for video references.
     response = requests.post(url, json=payload, headers=_headers(), timeout=120)
 
+    # Inline (base64) images are the primary path. If ModelArk refuses them for
+    # a format/parameter reason (NOT the face filter), re-host them on a public
+    # URL and retry once.
+    if response.status_code >= 400:
+        _b = (response.text or "")
+        _has_inline = any(
+            c.get("type") == "image_url" and str(c["image_url"]["url"]).startswith("data:")
+            for c in content)
+        if (_has_inline and "image" in _b.lower() and "Sensitive" not in _b):
+            try:
+                import base64 as _b64
+                from upload_image import host_image_bytes
+                for c in content:
+                    if c.get("type") == "image_url" and str(c["image_url"]["url"]).startswith("data:"):
+                        raw = _b64.b64decode(c["image_url"]["url"].split(",", 1)[1])
+                        c["image_url"]["url"] = host_image_bytes(raw, "ref.jpg")
+                print("[..] inline images refused — retrying with hosted URLs")
+                response = requests.post(url, json=payload, headers=_headers(), timeout=120)
+            except Exception as _he:
+                print(f"[!!] re-hosting images failed: {_he}")
+
     if response.status_code >= 400:
         body = response.text or ""
         # Friendly hint: real-person filter on reference IMAGE (check FIRST —
@@ -153,6 +174,12 @@ def submit_task(prompt, image_urls=None, video_urls=None, audio_urls=None,
                 "(the API opens gradually after the Jul 31 launch).\n"
                 "💡 Switch the engine back to Seedance 2.0 and try again, or check "
                 "the BytePlus console → ModelArk → Model list for 2.5 availability.\n\n"
+                f"Source: {body[:300]}"
+            )
+        if "UnsupportedImageFormat" in body:
+            raise RuntimeError(
+                "❌ Seedance couldn't read one of the reference images as an image.\n"
+                "💡 Re-save the image as a regular JPG/PNG (e.g. screenshot it) and upload again.\n\n"
                 f"Source: {body[:300]}"
             )
         raise RuntimeError(f"BytePlus submit failed [{response.status_code}]: {body}")

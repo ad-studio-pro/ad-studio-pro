@@ -34,36 +34,63 @@ def _get(key, default=""):
 IMGBB_API_KEY = _get("IMGBB_API_KEY")
 
 
+import hashlib
+
+_HOSTED_CACHE = {}   # sha1(bytes) -> public URL (cuts imgbb rate-limit hits)
+
+
 def _prepare_for_upload(image_path: Path) -> bytes:
-    """Normalize any image to a clean JPEG ≤2048px on the long side (~<5MB).
-    Fixes imgbb 400s from oversized / oddly-encoded files (e.g. JPEG data saved
-    with a .png name, huge phone photos, RGBA/CMYK)."""
+    """Normalize any image to a Seedance-safe JPEG:
+      - RGB, JPEG q90, long side ≤ 2048px
+      - short side ≥ 300px (Seedance minimum) — upscaled if needed
+      - aspect ratio within 0.4–2.5 (Seedance limit) — padded with white if needed
+    Raises a clear error if the file can't be decoded at all."""
     from io import BytesIO
     from PIL import Image
-    img = Image.open(image_path)
-    img.load()
-    if img.mode not in ("RGB", "L"):
+    try:
+        img = Image.open(image_path)
+        img.load()
+    except Exception as e:
+        raise RuntimeError(
+            f"Can't read image '{Path(image_path).name}' ({e}). "
+            "Re-save it as a regular JPG or PNG and upload again."
+        )
+    if img.mode in ("RGBA", "LA", "P"):
+        img = img.convert("RGBA")
         bg = Image.new("RGB", img.size, (255, 255, 255))
-        if img.mode in ("RGBA", "LA"):
-            bg.paste(img, mask=img.split()[-1])
-        else:
-            bg.paste(img.convert("RGB"))
+        bg.paste(img, mask=img.split()[-1])
         img = bg
-    elif img.mode == "L":
+    elif img.mode != "RGB":
         img = img.convert("RGB")
+
     img.thumbnail((2048, 2048))
+    w, h = img.size
+    if min(w, h) < 300:
+        s = 320 / min(w, h)
+        img = img.resize((int(w * s), int(h * s)), Image.LANCZOS)
+        w, h = img.size
+    ratio = w / h
+    if ratio > 2.5 or ratio < 0.4:
+        nw, nh = (w, int(w / 2.4)) if ratio > 2.5 else (int(h * 0.42), h)
+        canvas = Image.new("RGB", (nw, nh), (255, 255, 255))
+        canvas.paste(img, ((nw - w) // 2, (nh - h) // 2))
+        img = canvas
+
     buf = BytesIO()
-    img.save(buf, format="JPEG", quality=92)
+    img.save(buf, format="JPEG", quality=90)
     return buf.getvalue()
+
+
+def to_data_url(data: bytes) -> str:
+    return "data:image/jpeg;base64," + base64.b64encode(data).decode()
 
 
 def upload_to_imgbb(image_path: Path, data: bytes = None) -> str:
     """Upload to imgbb. Returns a public URL. Raises with imgbb's real reason."""
     key = _get("IMGBB_API_KEY")
     if not key:
-        raise RuntimeError("IMGBB_API_KEY missing (Streamlit Secrets / .env).")
-    image_path = Path(image_path)
-    data = data if data is not None else image_path.read_bytes()
+        raise RuntimeError("IMGBB_API_KEY missing")
+    data = data if data is not None else Path(image_path).read_bytes()
     response = requests.post(
         "https://api.imgbb.com/1/upload",
         data={"key": key, "image": base64.b64encode(data).decode()},
@@ -76,66 +103,50 @@ def upload_to_imgbb(image_path: Path, data: bytes = None) -> str:
         except Exception:
             pass
         raise RuntimeError(f"imgbb {response.status_code}: {reason}")
-    url = response.json()["data"]["url"]
-    print(f"[OK] imgbb {image_path.name} -> {url}")
-    return url
-
-
-def _upload_to_catbox(name: str, data: bytes) -> str:
-    r = requests.post(
-        "https://catbox.moe/user/api.php",
-        data={"reqtype": "fileupload"},
-        files={"fileToUpload": (name, data, "image/jpeg")},
-        timeout=120,
-    )
-    r.raise_for_status()
-    url = r.text.strip()
-    if not url.startswith("http"):
-        raise RuntimeError(f"catbox unexpected: {url[:120]}")
-    return url
+    return response.json()["data"]["url"]
 
 
 def _upload_to_tmpfiles(name: str, data: bytes) -> str:
-    r = requests.post(
-        "https://tmpfiles.org/api/v1/upload",
-        files={"file": (name, data, "image/jpeg")},
-        timeout=120,
-    )
+    r = requests.post("https://tmpfiles.org/api/v1/upload",
+                      files={"file": (name, data, "image/jpeg")}, timeout=120)
     r.raise_for_status()
     raw = r.json().get("data", {}).get("url", "")
     if not raw:
         raise RuntimeError("tmpfiles: no url")
-    return raw.replace("tmpfiles.org/", "tmpfiles.org/dl/")
+    return raw.replace("http://", "https://").replace("tmpfiles.org/", "tmpfiles.org/dl/")
+
+
+def host_image_bytes(data: bytes, name: str = "image.jpg", log=print) -> str:
+    """Put normalized JPEG bytes on a public host (imgbb → tmpfiles). Cached."""
+    key = hashlib.sha1(data).hexdigest()
+    if key in _HOSTED_CACHE:
+        return _HOSTED_CACHE[key]
+    errors = []
+    for host, fn in (("imgbb", lambda: upload_to_imgbb(name, data)),
+                     ("tmpfiles", lambda: _upload_to_tmpfiles(name, data))):
+        try:
+            url = fn()
+            _HOSTED_CACHE[key] = url
+            if errors:
+                log(f"    ↪ hosted via {host} (earlier: {'; '.join(errors)})")
+            return url
+        except Exception as e:
+            errors.append(f"{host}: {str(e)[:100]}")
+    raise RuntimeError("All image hosts failed: " + "; ".join(errors))
 
 
 def upload_image(image_path: Path, log=print) -> str:
-    """Public URL for an image, with fallbacks so one host can't block generation.
-    Order: imgbb → catbox → tmpfiles → inline base64 data URL (accepted by
-    ModelArk for reference images)."""
+    """Return an image reference Seedance can use.
+
+    Primary: inline base64 data URL of a normalized JPEG — no third-party
+    host involved (free hosts rate-limit, block cloud servers, or serve HTML
+    pages to bots, which Seedance rejects as 'UnsupportedImageFormat').
+    byteplus_client.submit_task() automatically re-hosts and retries if
+    ModelArk ever refuses an inline image."""
     image_path = Path(image_path)
     if not image_path.exists():
         raise FileNotFoundError(image_path)
-    try:
-        data = _prepare_for_upload(image_path)
-    except Exception:
-        data = image_path.read_bytes()
-    safe_name = "img_" + "".join(c if c.isalnum() else "_" for c in image_path.stem)[:40] + ".jpg"
-
-    errors = []
-    for host, fn in (("imgbb", lambda: upload_to_imgbb(image_path, data)),
-                     ("catbox", lambda: _upload_to_catbox(safe_name, data)),
-                     ("tmpfiles", lambda: _upload_to_tmpfiles(safe_name, data))):
-        try:
-            url = fn()
-            if errors:
-                log(f"    ↪ uploaded via {host} (earlier: {'; '.join(errors)})")
-            return url
-        except Exception as e:
-            errors.append(f"{host}: {str(e)[:120]}")
-
-    # Last resort: inline data URL (no external host needed)
-    log(f"    ↪ all image hosts failed ({'; '.join(errors)}) — sending image inline")
-    return "data:image/jpeg;base64," + base64.b64encode(data).decode()
+    return to_data_url(_prepare_for_upload(image_path))
 
 
 # ---------------------------------------------------------------------------
