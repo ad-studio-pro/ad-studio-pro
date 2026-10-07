@@ -222,6 +222,99 @@ def _save_express_plan(valid_prompts, gen_audio):
     return new_plan
 
 
+def _render_official_faces(project_root: Path) -> None:
+    """Official ByteDance face support for Seedance 2.0/2.5 — no filter fights.
+      A) Trusted AI characters: Seedream 5.0 lite text-to-image on the SAME
+         ModelArk account → original URL passes the face check (30-day trust).
+      B) Asset IDs from the ModelArk private asset library (Virtual Portrait /
+         Real-human) → asset://<id>.
+    Results land in st.session_state['trusted_char_urls'] / ['asset_ref_urls'],
+    which Stage 4 appends right after the product images."""
+    import importlib as _ilf
+    import trusted_refs as _tr
+    _ilf.reload(_tr)
+
+    n_products = len(st.session_state.get("image_paths") or [])
+    with st.expander("🧑‍🎤 Faces in your video — official ByteDance methods (recommended)", expanded=False):
+        st.caption(
+            "Seedance blocks uploaded photos of faces. ByteDance's official ways around it "
+            "(no tricks, no blocks): **A)** generate the character on your own ModelArk account "
+            "with Seedream 5.0 lite — its original image is trusted; or **B)** use portraits "
+            "verified in your ModelArk asset library (paste their Asset IDs)."
+        )
+
+        # ── A) Trusted Seedream character ──
+        st.markdown("**A) Create a trusted AI character (Seedream 5.0 lite)**")
+        _c_prompt = st.text_area(
+            "Describe the character (text only — no image upload, that's what makes it trusted)",
+            key="seedream_char_prompt", height=90,
+            placeholder="Vertical portrait photo of a friendly woman in her late 20s, shoulder-length "
+                        "dark hair, light makeup, white t-shirt, bright kitchen background, natural light, "
+                        "looking at the camera, upper body",
+        )
+        _cc1, _cc2 = st.columns([1, 2])
+        with _cc1:
+            _c_size = st.selectbox("Size", ["2K", "4K"], index=0, key="seedream_char_size")
+        with _cc2:
+            st.write("")
+            _go = st.button("🎨 Generate trusted character", use_container_width=True,
+                            key="seedream_char_btn", disabled=not _c_prompt.strip())
+        if _go:
+            from byteplus_client import seedream_generate
+            with st.spinner("Seedream 5.0 lite is creating the character..."):
+                try:
+                    _url = seedream_generate(_c_prompt.strip(), size=_c_size)
+                    _tr.record("image", _url, _c_prompt.strip()[:60])
+                    st.session_state.setdefault("_char_selected", {})[_url] = True
+                    st.success("✅ Character created — it's selected as a reference below.")
+                except Exception as _e:
+                    st.error(str(_e))
+
+        _chars = _tr.active("image")
+        _sel = st.session_state.setdefault("_char_selected", {})
+        if _chars:
+            st.caption("Your trusted characters (original URLs stay valid ~24h — generate a new one after that):")
+            _cols = st.columns(min(len(_chars), 4))
+            for _i, _it in enumerate(_chars[:8]):
+                with _cols[_i % 4]:
+                    st.image(_it["url"], use_container_width=True)
+                    _sel[_it["url"]] = st.checkbox(
+                        f"Use · {_tr.age_label(_it)}", value=_sel.get(_it["url"], False),
+                        key=f"char_use_{_i}_{abs(hash(_it['url'])) % 10**8}")
+        st.session_state["trusted_char_urls"] = [i["url"] for i in _chars if _sel.get(i["url"])]
+
+        st.markdown("---")
+        # ── B) Asset library IDs ──
+        st.markdown("**B) Portraits from your ModelArk asset library**")
+        st.caption(
+            "Upload your character in the BytePlus console → ModelArk → Playground → My assets → "
+            "**Virtual Portrait** → Manage assets (AI characters) — or **Real-human** for real people, "
+            "which needs company verification. When the status is *Verification successful*, copy the "
+            "**Asset ID** and paste it here (one per line). Requires 'Advanced Creation Rights' on the account."
+        )
+        _ids_txt = st.text_area("Asset IDs", key="asset_ids_input", height=70,
+                                placeholder="asset-20260909195044-229hs")
+        from byteplus_client import normalize_asset_ref
+        _assets, _bad = [], []
+        for _line in _ids_txt.splitlines():
+            if not _line.strip():
+                continue
+            _ref = normalize_asset_ref(_line)
+            (_assets if _ref else _bad).append(_ref or _line.strip())
+        st.session_state["asset_ref_urls"] = _assets
+        if _bad:
+            st.warning("Not an Asset ID (should start with 'asset-'): " + ", ".join(_bad))
+
+        # ── Mapping preview: how to refer to them in the prompt ──
+        _faces = st.session_state["trusted_char_urls"] + _assets
+        if _faces:
+            _lines = [f"- Product images → @Image 1–{n_products}" if n_products > 1 else
+                      ("- Product image → @Image 1" if n_products == 1 else "- (no product images)")]
+            for _k in range(len(_faces)):
+                _lines.append(f"- Face reference {_k + 1} → **@Image {n_products + _k + 1}**")
+            st.info("**In your prompt, refer to them like this** (never by Asset ID):\n\n" + "\n".join(_lines))
+
+
 def _render_video_editor(project_root: Path) -> None:
     """Seedance 2.5 V2V — edit or extend an already-generated video."""
     with st.expander("🎞 Edit an existing video (Seedance 2.5) — replace / remove / change, or extend", expanded=False):
@@ -231,10 +324,33 @@ def _render_video_editor(project_root: Path) -> None:
             "\"change the shirt to blue\" — or extend it past its last frame. "
             "Uses Seedance 2.5 (needs 2.5 API access on your ModelArk account)."
         )
-        _ve_file = st.file_uploader(
-            "Source video = @Video 1 (MP4/MOV, ≤15s works best)",
-            type=["mp4", "mov", "webm"], key="ve_uploader",
-        )
+        import trusted_refs as _tr_ve
+        _recent = _tr_ve.active("video")
+        _src_opts = ["⬆️ Upload a video file"]
+        if _recent:
+            _src_opts.insert(0, "🎬 A video generated here in the last 24h (trusted — faces OK)")
+        _src_opts.append("🗂 An Asset ID from my ModelArk asset library")
+        _ve_src_mode = st.radio("Source video (@Video 1)", _src_opts, index=0, key="ve_src_mode")
+        _ve_file, _ve_source_url = None, None
+        if _ve_src_mode.startswith("🎬"):
+            _pick = st.selectbox(
+                "Pick the video", range(len(_recent)), key="ve_recent_pick",
+                format_func=lambda i: f"{_recent[i]['label']} · {_tr_ve.age_label(_recent[i])}")
+            _ve_source_url = _recent[_pick]["url"]
+            st.video(_ve_source_url)
+        elif _ve_src_mode.startswith("🗂"):
+            from byteplus_client import normalize_asset_ref
+            _aid = st.text_input("Asset ID", key="ve_asset_id", placeholder="asset-2026…")
+            _ve_source_url = normalize_asset_ref(_aid)
+            if _aid.strip() and not _ve_source_url:
+                st.warning("Asset IDs start with 'asset-'.")
+        else:
+            st.caption("⚠️ Uploaded files with realistic faces are blocked by Seedance — for faces, "
+                       "use a video generated here (trusted) or an asset-library ID.")
+            _ve_file = st.file_uploader(
+                "Source video (MP4/MOV, ≤15s works best)",
+                type=["mp4", "mov", "webm"], key="ve_uploader",
+            )
         _ve_mode = st.radio(
             "Operation",
             ["✏️ Edit (change something in the video)",
@@ -285,7 +401,7 @@ def _render_video_editor(project_root: Path) -> None:
             _ve_res = st.selectbox("Quality", ["480p", "720p", "1080p"], index=1, key="ve_res")
         _ve_audio = st.checkbox("🔊 Generate audio", value=True, key="ve_audio")
 
-        _disabled = not (_ve_file and _ve_instr.strip())
+        _disabled = not ((_ve_file or _ve_source_url) and _ve_instr.strip())
         if st.button("🎬 Generate edited video", type="primary",
                       use_container_width=True, disabled=_disabled, key="ve_go"):
             import importlib as _ilv
@@ -294,8 +410,11 @@ def _render_video_editor(project_root: Path) -> None:
             from datetime import datetime as _dtv
             _src_dir = project_root / "assets" / "edit_src"
             _src_dir.mkdir(parents=True, exist_ok=True)
-            _src = _src_dir / _ve_file.name
-            _src.write_bytes(_ve_file.getvalue())
+            if _ve_file is not None:
+                _src = _src_dir / _ve_file.name
+                _src.write_bytes(_ve_file.getvalue())
+            else:
+                _src = None
             _ts = _dtv.now().strftime("%Y%m%d_%H%M%S")
             _out = project_root / "outputs" / "videos" / f"edited_{_ts}.mp4"
             # Save reference images / extra videos to disk
@@ -313,6 +432,7 @@ def _render_video_editor(project_root: Path) -> None:
                 try:
                     _res = _vev.edit_video(
                         _src, _ve_instr.strip(), _out,
+                        source_url=_ve_source_url,
                         image_paths=_ve_img_paths or None,
                         extra_video_paths=_ve_vid_paths or None,
                         ratio=_ve_ratio, duration=int(_ve_dur), resolution=_ve_res,
@@ -758,8 +878,10 @@ def render_express_ui(project_root: Path) -> None:
                     st.markdown(f"**@Image {idx+1} — {title}**")
                     st.code(build_product_asset_sheet_prompt(label, sheet_mode), language=None)
 
+    _render_official_faces(project_root)
+
     # ── AI character reference (AI-generated people as the on-screen creator) ──
-    with st.expander("🧑‍🎤 AI character reference (use an AI-generated person as the creator)", expanded=False):
+    with st.expander("🧑‍🎤 Upload your own AI face image (fallback — often blocked; prefer the official methods above)", expanded=False):
         st.caption(
             "Upload AI-generated character portraits to drive a consistent on-screen creator "
             "(the official Dreamina 'AI influencer' workflow). Seedance's filter blocks photos of "

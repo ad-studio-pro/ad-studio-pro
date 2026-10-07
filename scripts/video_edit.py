@@ -21,7 +21,7 @@ from upload_image import upload_image
 
 
 def edit_video(source_video_path, instruction, out_path, *,
-               image_paths=None, extra_video_paths=None,
+               source_url=None, image_paths=None, extra_video_paths=None,
                ratio="9:16", duration=None, resolution="720p",
                generate_audio=True, extend=False, log=print):
     """Edit or extend an existing video via Seedance 2.5 V2V.
@@ -36,12 +36,17 @@ def edit_video(source_video_path, instruction, out_path, *,
     duration: output seconds (4-30 for 2.5).
     Returns the local Path of the new clip.
     """
-    source_video_path = Path(source_video_path)
-    if not source_video_path.exists():
-        raise FileNotFoundError(source_video_path)
-
-    log(f"📤 Uploading source video (@Video 1): {source_video_path.name}")
-    src_url = upload_video(source_video_path)
+    if source_url:
+        # Original Seedance output URL or asset://<id> — passed untouched so
+        # ByteDance treats it as trusted (faces OK). No re-upload.
+        log("🔗 Source = @Video 1 (trusted original / asset — no re-upload)")
+        src_url = source_url
+    else:
+        source_video_path = Path(source_video_path)
+        if not source_video_path.exists():
+            raise FileNotFoundError(source_video_path)
+        log(f"📤 Uploading source video (@Video 1): {source_video_path.name}")
+        src_url = upload_video(source_video_path)
     video_urls = [src_url]
 
     # Extra reference videos → @Video 2, @Video 3 (Seedance allows up to 3 total)
@@ -92,6 +97,11 @@ def edit_video(source_video_path, instruction, out_path, *,
     log(f"  task_id: {task_id}")
     result = poll_task(task_id, log=log)
     url = extract_video_url(result)
+    try:
+        import trusted_refs as _tr
+        _tr.record("video", url, "Edited video")
+    except Exception:
+        pass
 
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)

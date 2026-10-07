@@ -884,7 +884,16 @@ if videos_with_prompts:
                     if ai_char_urls:
                         s4_status.write(f"🧑‍🎤 {len(ai_char_urls)} AI character reference(s) attached")
 
-                    base_image_urls = (product_image_urls + ai_char_urls)[:9]
+                    # Official face references (no upload / no re-encode — passed untouched):
+                    #   trusted Seedream characters (original URL) + asset-library IDs
+                    extra_ref_urls = list(st.session_state.get("trusted_char_urls") or []) + \
+                                     list(st.session_state.get("asset_ref_urls") or [])
+                    if extra_ref_urls:
+                        _p = len(product_image_urls)
+                        s4_status.write(
+                            f"🧑‍🎤 {len(extra_ref_urls)} trusted face reference(s) attached as "
+                            f"@Image {_p + 1}" + (f"–{_p + len(extra_ref_urls)}" if len(extra_ref_urls) > 1 else ""))
+                    base_image_urls = (product_image_urls + extra_ref_urls + ai_char_urls)[:9]
                     base_image_url = base_image_urls[0] if base_image_urls else None  # backward-compat
 
                     # Reference audio (Audio Studio voice + uploaded MP3s) — once per batch
@@ -930,6 +939,7 @@ if videos_with_prompts:
                                 continue
 
                             chunk_videos = []
+                            chunk_remote_urls = []
                             chunk_prompts_used = []
                             for ci, chunk_dur in enumerate(chunk_durations, 1):
                                 if multi_chunk:
@@ -946,8 +956,14 @@ if videos_with_prompts:
                                     last_frame_path = OUTPUTS_DIR / "videos" / f"_lf_{video['id']}_{ts}_c{ci-1}.jpg"
                                     extract_last_frame(chunk_videos[-1], last_frame_path)
 
-                                    s4_status.write("  📤 Uploading the previous video to catbox.moe...")
-                                    vid_url = upload_video(chunk_videos[-1])
+                                    # Original Seedance URL = trusted (faces OK) and no
+                                    # third-party host needed (catbox blocks Streamlit Cloud).
+                                    if chunk_remote_urls:
+                                        vid_url = chunk_remote_urls[-1]
+                                        s4_status.write("  🔗 Using the previous chunk's original Seedance URL (trusted, no re-upload)")
+                                    else:
+                                        s4_status.write("  📤 Uploading the previous video...")
+                                        vid_url = upload_video(chunk_videos[-1])
 
                                     s4_status.write("  ✍️ Claude is writing a continuation...")
                                     continuation = pg.generate_continuation_prompt(
@@ -993,7 +1009,7 @@ if videos_with_prompts:
                                                     log=s4_status.write, strength=_lvl)
                                                 st.session_state["ai_char_paths"] = _prep
                                                 ai_char_urls = [upload_image(Path(pp)) for pp in _prep]
-                                                base_image_urls = (product_image_urls + ai_char_urls)[:9]
+                                                base_image_urls = (product_image_urls + extra_ref_urls + ai_char_urls)[:9]
                                                 chunk_image_urls = list(base_image_urls)
                                             task_id = submit_task(
                                                 prompt=chunk_prompt,
@@ -1048,6 +1064,13 @@ if videos_with_prompts:
                                     raise RuntimeError(f"Both attempts timed out for {video['id']} chunk {ci}")
 
                                 video_url = extract_video_url(result)
+                                chunk_remote_urls.append(video_url)
+                                try:
+                                    import trusted_refs as _tr
+                                    _tr.record("video", video_url,
+                                               f"Video {video['id']}" + (f" · part {ci}" if multi_chunk else ""))
+                                except Exception:
+                                    pass
                                 cp = OUTPUTS_DIR / "videos" / f"{video['id']}_{ts}_c{ci}.mp4"
                                 cp.parent.mkdir(parents=True, exist_ok=True)
                                 download_video(video_url, cp)

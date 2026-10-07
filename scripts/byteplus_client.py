@@ -301,3 +301,56 @@ def test_connection():
 
 if __name__ == "__main__":
     test_connection()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Trusted inputs (official ByteDance face support)
+#   • Seedream 5.0 lite text-to-image outputs and Seedance video outputs created
+#     on THIS ModelArk account are trusted as face-containing inputs for 30 days
+#     — but only as the ORIGINAL file (pass the returned URL untouched; never
+#     download+re-upload/compress, which voids the trust).
+#   • Private asset library items are referenced as asset://<asset ID>.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _seedream_model_id():
+    return _get("SEEDREAM_MODEL_ID", "seedream-5-0-260128")
+
+
+def seedream_generate(prompt, size="2K", model=None, timeout=180):
+    """Text-to-image with Seedream 5.0 lite on ModelArk. Returns the ORIGINAL
+    image URL (≈24h valid) — use it as-is as a trusted Seedance reference."""
+    payload = {
+        "model": model or _seedream_model_id(),
+        "prompt": prompt,
+        "size": size,
+        "response_format": "url",
+        "watermark": False,
+    }
+    r = requests.post(f"{_base_url()}/images/generations", json=payload,
+                      headers=_headers(), timeout=timeout)
+    if r.status_code >= 400:
+        body = r.text or ""
+        if "ModelNotOpen" in body or "not activated" in body.lower() or "NotFound" in body:
+            raise RuntimeError(
+                "❌ Seedream 5.0 lite isn't activated on this ModelArk account.\n"
+                "💡 BytePlus console → ModelArk → Model activation → enable Seedream 5.0 lite.\n\n"
+                f"Source: {body[:300]}")
+        raise RuntimeError(f"Seedream failed [{r.status_code}]: {body[:400]}")
+    data = r.json()
+    items = data.get("data") or []
+    url = items[0].get("url") if items else None
+    if not url:
+        raise RuntimeError(f"No image URL in Seedream response: {str(data)[:300]}")
+    return url
+
+
+def normalize_asset_ref(text):
+    """'asset-2026…' / 'asset://asset-2026…' → 'asset://asset-2026…' (else None)."""
+    t = (text or "").strip()
+    if not t:
+        return None
+    if t.startswith("asset://"):
+        return t
+    if t.startswith("asset-"):
+        return "asset://" + t
+    return None
