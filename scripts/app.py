@@ -987,7 +987,8 @@ if videos_with_prompts:
                                 # Submit + poll with 1 retry on timeout
                                 result = None
                                 last_task_id = None
-                                for attempt in range(2):
+                                _gen_audio_flag = bool(video.get("generate_audio", True))
+                                for attempt in range(3):
                                     attempt_label = "" if attempt == 0 else f" (retry {attempt})"
                                     s4_status.write(f"  📨 Sending chunk {ci}{attempt_label} to Seedance ({resolution}, {ratio}, {chunk_dur}s)...")
                                     # Escalating submit: original chars → soft prepare → strong stylize
@@ -1019,7 +1020,7 @@ if videos_with_prompts:
                                                 audio_urls=chunk_audio_refs,
                                                 ratio=ratio,
                                                 duration=chunk_dur,
-                                                generate_audio=video.get("generate_audio", True),
+                                                generate_audio=_gen_audio_flag,
                                                 watermark=False,
                                                 extra_payload={"resolution": resolution},
                                             )
@@ -1057,17 +1058,22 @@ if videos_with_prompts:
                                     except RuntimeError as _pe:
                                         _no_music = ("Audio: no background music and no songs — only natural "
                                                      "ambient sound and the character's own voice if they speak.")
-                                        if (attempt == 0 and "OutputAudioSensitive" in str(_pe)
-                                                and "copyright" in str(_pe).lower()
-                                                and _no_music not in chunk_prompt):
-                                            s4_status.write("  🎵 The auto-generated soundtrack was blocked as copyrighted — "
-                                                            "retrying once with 'no background music'...")
-                                            chunk_prompt = chunk_prompt.rstrip() + "\n\n" + _no_music
-                                            continue
+                                        if "OutputAudioSensitive" in str(_pe) and attempt < 2:
+                                            if _no_music not in chunk_prompt:
+                                                s4_status.write("  🎵 Seedance blocked its own soundtrack — retrying with "
+                                                                "'no background music'...")
+                                                chunk_prompt = chunk_prompt.rstrip() + "\n\n" + _no_music
+                                                continue
+                                            if _gen_audio_flag:
+                                                s4_status.write("  🔇 The sound was blocked again — generating the video "
+                                                                "WITHOUT audio so you still get it (add sound in CapCut "
+                                                                "or with the Voice studio).")
+                                                _gen_audio_flag = False
+                                                continue
                                         raise
                                     except TimeoutError as te:
                                         s4_status.write(f"  ⚠ timeout (attempt {attempt + 1}): {te}")
-                                        if attempt == 0:
+                                        if attempt < 2:
                                             s4_status.write("  🔄 Retrying once...")
                                         else:
                                             raise
