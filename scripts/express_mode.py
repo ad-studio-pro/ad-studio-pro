@@ -194,6 +194,17 @@ def maybe_render_express(project_root) -> bool:
     return is_express
 
 
+NO_MUSIC_RULE = ("Audio: no background music and no songs — only natural ambient sound "
+                 "and the character's own voice if they speak.")
+
+
+def _with_audio_rule(prompt, gen_audio):
+    """Append the no-music rule when audio is on and the user opted in."""
+    if gen_audio and st.session_state.get("ex_no_music", True) and NO_MUSIC_RULE not in prompt:
+        return prompt.rstrip() + "\n\n" + NO_MUSIC_RULE
+    return prompt
+
+
 def _save_express_plan(valid_prompts, gen_audio):
     """Build the campaign dict and write it to session_state. Called both by
     the explicit Save button AND automatically on every rerun (auto-save).
@@ -210,7 +221,7 @@ def _save_express_plan(valid_prompts, gen_audio):
             "generate_audio": bool(gen_audio),
             "resolution": st.session_state.get("ex_res", "720p"),
             "engine": "2.5" if st.session_state.get("ex_engine", "").startswith("🚀") else "2.0",
-            "prompt": p["prompt"].strip(),
+            "prompt": _with_audio_rule(p["prompt"].strip(), gen_audio),
         })
     new_plan = {
         "campaign_name": EXPRESS_MARKER,
@@ -556,6 +567,13 @@ def render_express_ui(project_root: Path) -> None:
             "Turn off if Seedance refuses to generate the video with the error "
             "'OutputAudioSensitiveContentDetected'. The video will be generated without audio."
         ),
+    )
+    st.checkbox(
+        "🎵 No background music (recommended — prevents copyright blocks)",
+        value=True, key="ex_no_music",
+        help="When the prompt doesn't describe the sound, Seedance invents its own soundtrack, "
+             "and that music is sometimes blocked as copyrighted. This tells Seedance to use only "
+             "natural sound and voice. Turn off if your prompt describes the music you want.",
     )
 
     st.markdown("**🖼 Product images (optional — up to 9)**")

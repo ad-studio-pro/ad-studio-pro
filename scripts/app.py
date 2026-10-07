@@ -1054,6 +1054,17 @@ if videos_with_prompts:
                                     try:
                                         result = poll_task(task_id, log=s4_status.write)
                                         break  # success
+                                    except RuntimeError as _pe:
+                                        _no_music = ("Audio: no background music and no songs — only natural "
+                                                     "ambient sound and the character's own voice if they speak.")
+                                        if (attempt == 0 and "OutputAudioSensitive" in str(_pe)
+                                                and "copyright" in str(_pe).lower()
+                                                and _no_music not in chunk_prompt):
+                                            s4_status.write("  🎵 The auto-generated soundtrack was blocked as copyrighted — "
+                                                            "retrying once with 'no background music'...")
+                                            chunk_prompt = chunk_prompt.rstrip() + "\n\n" + _no_music
+                                            continue
+                                        raise
                                     except TimeoutError as te:
                                         s4_status.write(f"  ⚠ timeout (attempt {attempt + 1}): {te}")
                                         if attempt == 0:
