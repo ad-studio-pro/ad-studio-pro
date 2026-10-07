@@ -984,6 +984,19 @@ if videos_with_prompts:
 
                                 chunk_prompts_used.append(chunk_prompt)
 
+                                # ── Transparency: show EXACTLY what goes to Seedance ──
+                                _n_prod = len(product_image_urls) if ci == 1 else 0
+                                _n_face = len(extra_ref_urls) + len(ai_char_urls) if ci == 1 else 0
+                                _att = [f"{len(chunk_image_urls)} image(s)"
+                                        + (f" ({_n_prod} product, {_n_face} face)" if ci == 1 else ""),
+                                        f"{len(chunk_video_refs)} reference video(s)"
+                                        + (" ⚠ their sound is copied into the output" if chunk_video_refs else ""),
+                                        f"{len(chunk_audio_refs)} reference audio file(s)"
+                                        + (" ⚠ the model copies this sound" if chunk_audio_refs else ""),
+                                        f"generate_audio={'on' if video.get('generate_audio', True) else 'off'}"]
+                                s4_status.write("  📋 Sent to Seedance: " + " · ".join(_att))
+                                s4_status.write("  📝 Exact prompt sent:\n```\n" + chunk_prompt + "\n```")
+
                                 # Submit + poll with 1 retry on timeout
                                 result = None
                                 last_task_id = None

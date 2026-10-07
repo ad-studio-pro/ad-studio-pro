@@ -116,7 +116,7 @@ def render_ref_audio_ui(project_root: Path) -> None:
         if seed_url:
             st.checkbox(
                 "🎙 Use the voice you created in Audio Studio as @Audio 1",
-                value=st.session_state.get("use_seed_audio_ref", True),
+                value=st.session_state.get("use_seed_audio_ref", False),
                 key="use_seed_audio_ref",
             )
             st.code(seed_url, language=None)
