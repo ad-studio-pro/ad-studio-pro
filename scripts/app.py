@@ -48,7 +48,7 @@ from byteplus_client import (submit_task, poll_task, download_video,
                              extract_video_url, model_for_engine, max_single_duration)
 from upload_image import upload_image, IMGBB_API_KEY
 from upload_video import upload_video
-from video_stitcher import extract_last_frame, concat_videos, is_ffmpeg_available
+from video_stitcher import extract_last_frame, concat_videos, is_ffmpeg_available, trim_video
 
 # Pipeline modules
 import prompt_generator as pg
@@ -243,9 +243,9 @@ if not IS_EXPRESS:
             )
             default_duration = st.selectbox(
                 "Default duration (seconds)",
-                [5, 8, 10, 15, 20, 25, 30],
-                index=3,
-                format_func=lambda x: f"{x}s" + (" (×2 chunks)" if x > 15 else ""),
+                [3, 4, 5, 8, 10, 15, 20, 25, 30],
+                index=5,
+                format_func=lambda x: f"{x}s" + (" (auto-trimmed from 4s)" if x < 4 else "") + (" (×2 chunks)" if x > 15 else ""),
                 help="≤15s = a single generation. 20-30s = two chunks (opener+continuation) stitched automatically with ffmpeg.",
             )
             duration_policy = st.radio(
@@ -686,7 +686,7 @@ if not IS_EXPRESS:
         )
         manual_dur = st.number_input(
             "Default duration per video (seconds)",
-            min_value=5, max_value=30, value=int(default_duration), step=1,
+            min_value=2, max_value=30, value=int(default_duration), step=1,
             key="manual_stage3_dur",
         )
         if st.button("✅ Use the manual prompts (skip Stage 3)", key="use_manual_stage3"):
@@ -905,17 +905,21 @@ if videos_with_prompts:
                             #   Seedance 2.5 → up to 30s per request (single take!)
                             engine = str(video.get("engine", "2.0"))
                             max_chunk = max_single_duration(engine)
+                            API_MIN = 4  # Seedance minimum per take (2.0 and 2.5)
+                            trim_to = duration if duration < API_MIN else None
+                            if trim_to:
+                                s4_status.write(f"  ✂️ {duration}s requested — generating {API_MIN}s and trimming to {duration}s")
                             if duration <= max_chunk:
-                                chunk_durations = [duration]
+                                chunk_durations = [max(duration, API_MIN)]
                             else:
                                 full_chunks = duration // max_chunk
                                 remainder = duration % max_chunk
                                 chunk_durations = [max_chunk] * full_chunks
-                                if remainder >= 5:
+                                if remainder >= API_MIN:
                                     chunk_durations.append(remainder)
                                 elif remainder > 0:
-                                    chunk_durations[-1] = max_chunk - (5 - remainder)
-                                    chunk_durations.append(5)
+                                    chunk_durations[-1] = max_chunk - (API_MIN - remainder)
+                                    chunk_durations.append(API_MIN)
                             multi_chunk = len(chunk_durations) > 1
 
                             if not multi_chunk and duration > 15:
@@ -1062,6 +1066,11 @@ if videos_with_prompts:
                                 concat_videos(chunk_videos, out_path)
                             else:
                                 out_path = chunk_videos[0]
+
+                            if trim_to and is_ffmpeg_available():
+                                _trimmed = out_path.with_name(out_path.stem + f"_{trim_to}s.mp4")
+                                out_path = trim_video(out_path, trim_to, _trimmed)
+                                s4_status.write(f"  ✂️ trimmed to {trim_to}s")
 
                             s4_status.write(f"  ✅ {out_path.name}")
                             video_outputs.append((video["id"], out_path))

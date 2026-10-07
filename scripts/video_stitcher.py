@@ -123,3 +123,18 @@ def is_ffmpeg_available() -> bool:
 if __name__ == "__main__":
     print(f"ffmpeg path  : {get_ffmpeg()}")
     print(f"ffmpeg works : {is_ffmpeg_available()}")
+
+
+def trim_video(video_path: Path, seconds: float, output_path: Path) -> Path:
+    """Cut a clip to its first `seconds` (re-encoded for a frame-accurate cut).
+    Used for videos shorter than Seedance's 4s minimum per take."""
+    import subprocess
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    cmd = [get_ffmpeg(), "-y", "-i", str(video_path), "-t", f"{float(seconds):.2f}",
+           "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p",
+           "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(output_path)]
+    r = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+    if r.returncode != 0:
+        raise RuntimeError(f"ffmpeg trim failed: {r.stderr[-300:]}")
+    return output_path

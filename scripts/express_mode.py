@@ -373,6 +373,8 @@ def render_express_ui(project_root: Path) -> None:
     # Longest clip a single generation can make on the chosen engine
     _single_take_max = 30 if ex_engine.startswith("🚀") else 15
     def _dur_label(x):
+        if x < 4:
+            return f"{x}s · short (generated at 4s, auto-trimmed)"
         if x <= _single_take_max:
             return f"{x}s" + (" · single take ✓" if x > 15 else "")
         n = (x + _single_take_max - 1) // _single_take_max
@@ -405,7 +407,7 @@ def render_express_ui(project_root: Path) -> None:
     with col_d:
         ex_default_dur = st.selectbox(
             "Default duration (seconds)",
-            [5, 8, 10, 15, 20, 25, 30, 40, 45, 60], index=3,
+            [2, 3, 4, 5, 8, 10, 15, 20, 25, 30, 40, 45, 60], index=6,
             format_func=_dur_label,
             key="ex_dur",
         )
@@ -923,7 +925,7 @@ def render_express_ui(project_root: Path) -> None:
             with dc:
                 dur_i = st.number_input(
                     f"Video {i+1} duration (seconds)",
-                    min_value=5, max_value=60, value=int(ex_default_dur), step=1,
+                    min_value=2, max_value=60, value=int(ex_default_dur), step=1,
                     key=f"ex_dur_{i}",
                 )
             with rc:
