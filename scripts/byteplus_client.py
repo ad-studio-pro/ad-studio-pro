@@ -226,9 +226,21 @@ def poll_task(task_id, interval=15, max_wait=900, log=print):
             err_str = str(err)
             # Friendly hint for the audio safety filter
             if "OutputAudioSensitive" in err_str:
+                if "copyright" in err_str.lower():
+                    raise RuntimeError(
+                        "Task failed: the video itself was fine, but the generated SOUNDTRACK sounded "
+                        "too close to copyrighted music, so Seedance blocked it (not a face problem).\n"
+                        "💡 Fixes (pick one):\n"
+                        "  1. In the prompt, remove any song / artist / band / 'trending sound' / lyrics "
+                        "and describe the music generically, e.g. 'original upbeat instrumental, no lyrics'.\n"
+                        "  2. Ask for 'no background music — only voice and natural ambient sound'.\n"
+                        "  3. Upload your own licensed music as reference audio (@Audio 1).\n"
+                        "  4. Uncheck '🔊 Generate audio' and add music later in CapCut.\n"
+                        f"Source: {err_str}"
+                    )
                 raise RuntimeError(
-                    "Task failed: Seedance's audio safety filter blocked this output.\n"
-                    "💡 Fix: in Express, uncheck '🔊 Generate audio' and try again.\n"
+                    "Task failed: Seedance's audio safety filter blocked the generated sound.\n"
+                    "💡 Fix: soften the dialogue/sound description, or uncheck '🔊 Generate audio' and try again.\n"
                     f"Source: {err_str}"
                 )
             raise RuntimeError(f"Task failed: {err}")
