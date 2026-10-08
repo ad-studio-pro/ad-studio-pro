@@ -1014,7 +1014,7 @@ if videos_with_prompts:
                                 result = None
                                 last_task_id = None
                                 _gen_audio_flag = bool(video.get("generate_audio", True))
-                                for attempt in range(3):
+                                for attempt in range(4):
                                     attempt_label = "" if attempt == 0 else f" (retry {attempt})"
                                     s4_status.write(f"  📨 Sending chunk {ci}{attempt_label} to Seedance ({resolution}, {ratio}, {chunk_dur}s)...")
                                     # Escalating submit: original chars → soft prepare → strong stylize
@@ -1082,13 +1082,27 @@ if videos_with_prompts:
                                         result = poll_task(task_id, log=s4_status.write)
                                         break  # success
                                     except RuntimeError as _pe:
-                                        _no_music = ("Audio: no background music and no songs — only natural "
-                                                     "ambient sound and the character's own voice if they speak.")
-                                        if "OutputAudioSensitive" in str(_pe) and attempt < 2:
-                                            if _no_music not in chunk_prompt:
-                                                s4_status.write("  🎵 Seedance blocked its own soundtrack — retrying with "
-                                                                "'no background music'...")
-                                                chunk_prompt = chunk_prompt.rstrip() + "\n\n" + _no_music
+                                        # Soundtrack ladder: keep as much atmosphere as possible.
+                                        #   1) simpler original score + effects  2) effects + voice only
+                                        #   3) last resort: no audio (video still delivered)
+                                        _base = chunk_prompt.split("\n\nSoundtrack rule:")[0]
+                                        _simple = ("Soundtrack rule: rich sound effects and ambience synced to "
+                                                   "the action, plus a minimal ORIGINAL ambient score (soft "
+                                                   "atmospheric pads and light percussion only, no melody, no "
+                                                   "vocals, nothing resembling any existing song).")
+                                        _fx_only = ("Soundtrack rule: no music and no songs — but keep rich, "
+                                                    "detailed sound effects and natural ambience synced to every "
+                                                    "action, plus the characters' voices.")
+                                        if "OutputAudioSensitive" in str(_pe) and attempt < 3:
+                                            if _simple not in chunk_prompt and _fx_only not in chunk_prompt:
+                                                s4_status.write("  🎵 Seedance flagged its own music — retrying with a "
+                                                                "simpler ORIGINAL score (effects kept)...")
+                                                chunk_prompt = _base.rstrip() + "\n\n" + _simple
+                                                continue
+                                            if _fx_only not in chunk_prompt:
+                                                s4_status.write("  🎵 Flagged again — retrying with full sound effects "
+                                                                "and voices, no music...")
+                                                chunk_prompt = _base.rstrip() + "\n\n" + _fx_only
                                                 continue
                                             if _gen_audio_flag:
                                                 s4_status.write("  🔇 The sound was blocked again — generating the video "
@@ -1248,7 +1262,7 @@ if st.session_state.get("video_history") or st.session_state.get("stage4"):
                                          help="Puts this video's prompt back into Video #1 so you can tweak it and generate again."):
                                 _pr = _item["prompt"]
                                 # strip the auto-added audio rule — it's re-added on save
-                                _pr = _pr.split("\n\nAudio: no background music")[0]
+                                _pr = _pr.split("\n\nSoundtrack rule:")[0].split("\n\nAudio: no background music")[0]
                                 # Applied before the text box is drawn on the next run
                                 st.session_state["_pending_prompt_0"] = _pr
                                 st.rerun()

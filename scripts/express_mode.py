@@ -203,14 +203,30 @@ def maybe_render_express(project_root) -> bool:
     return is_express
 
 
-NO_MUSIC_RULE = ("Audio: no background music and no songs — only natural ambient sound "
-                 "and the character's own voice if they speak.")
+# Soundtrack rules — all start with "Soundtrack rule:" so they can be found/stripped.
+SCORE_RULE = ("Soundtrack rule: full cinematic sound design — rich, detailed sound effects and room "
+              "ambience synced to every action, plus an ORIGINAL instrumental score composed for this "
+              "ad that matches its mood and builds with the story. Instrumental only (no lyrics, no "
+              "singing), not resembling any existing song. Dialogue stays clear above the music.")
+NO_MUSIC_RULE = ("Soundtrack rule: no music and no songs — but keep rich, detailed sound effects and "
+                 "natural ambience synced to every action, plus the characters' voices.")
+SOUNDTRACK_OPTIONS = {
+    "🎼 Music + effects (original score)": SCORE_RULE,
+    "✍️ As written in my prompt": "",
+    "🔇 Effects + voice only (no music)": NO_MUSIC_RULE,
+}
+
+
+def strip_soundtrack_rule(prompt: str) -> str:
+    return prompt.split("\n\nSoundtrack rule:")[0].split("\n\nAudio: no background music")[0]
 
 
 def _with_audio_rule(prompt, gen_audio):
-    """Append the no-music rule when audio is on and the user opted in."""
-    if gen_audio and st.session_state.get("ex_no_music", True) and NO_MUSIC_RULE not in prompt:
-        return prompt.rstrip() + "\n\n" + NO_MUSIC_RULE
+    """Append the chosen soundtrack rule (only when audio is on)."""
+    prompt = strip_soundtrack_rule(prompt)
+    rule = SOUNDTRACK_OPTIONS.get(st.session_state.get("ex_soundtrack"), SCORE_RULE)
+    if gen_audio and rule:
+        return prompt.rstrip() + "\n\n" + rule
     return prompt
 
 
@@ -312,7 +328,7 @@ def _render_character_library(project_root: Path) -> list:
         try:
             _cache = {
                 "aigc": _al.list_assets("AIGC"),
-                "real": _al.list_assets("LivenessFace"),
+                "real": [],  # your verified real face is never listed here — paste its ID in B
                 "groups": {g["Id"]: g.get("Name", "") for g in _al.list_groups("AIGC")},
             }
             st.session_state["_lib_cache"] = _cache
@@ -320,9 +336,9 @@ def _render_character_library(project_root: Path) -> list:
             st.error(f"Couldn't load the library: {_e}")
             return []
 
-    _all = [("AI", a) for a in _cache["aigc"]] + [("Real", a) for a in _cache["real"]]
-    st.caption(f"{len(_all)} / {_al.FREE_PLAN_LIMIT} assets used (free plan). "
-               "Delete characters you no longer need to free space.")
+    _all = [("AI", a) for a in _cache["aigc"]]
+    st.caption(f"{len(_all)} AI characters (free plan: {_al.FREE_PLAN_LIMIT} assets in total). "
+               "Your own verified face is not shown here — paste its Asset ID in B when you need it.")
     if not _all:
         st.caption("No approved characters yet.")
         return []
@@ -794,12 +810,12 @@ def render_express_ui(project_root: Path) -> None:
             "'OutputAudioSensitiveContentDetected'. The video will be generated without audio."
         ),
     )
-    st.checkbox(
-        "🎵 No background music (recommended — prevents copyright blocks)",
-        value=True, key="ex_no_music",
-        help="When the prompt doesn't describe the sound, Seedance invents its own soundtrack, "
-             "and that music is sometimes blocked as copyrighted. This tells Seedance to use only "
-             "natural sound and voice. Turn off if your prompt describes the music you want.",
+    st.radio(
+        "🎵 Soundtrack",
+        list(SOUNDTRACK_OPTIONS.keys()), index=0, horizontal=True, key="ex_soundtrack",
+        help="Music + effects: Seedance composes an ORIGINAL instrumental score plus full sound effects. "
+             "If Seedance ever blocks its own music as copyrighted, the app automatically retries with a "
+             "simpler score, then effects-only — so you always get a video.",
     )
 
     st.markdown("**🖼 Product images (optional — up to 9)**")
