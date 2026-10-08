@@ -1139,6 +1139,21 @@ if videos_with_prompts:
                         state="complete", expanded=False,
                     )
                     st.session_state["stage4"] = video_outputs
+                    # Session gallery — every video made this session, newest first.
+                    from datetime import datetime as _dth
+                    _hist = st.session_state.setdefault("video_history", [])
+                    _prompts_by_id = {v["id"]: v.get("prompt", "") for v in todo}
+                    for _vid, _vp in video_outputs:
+                        if not any(h["path"] == str(_vp) for h in _hist):
+                            _hist.insert(0, {"id": _vid, "path": str(_vp),
+                                             "prompt": _prompts_by_id.get(_vid, ""),
+                                             "time": _dth.now().strftime("%H:%M")})
+                    # Express: the same prompt slot can be generated again right away
+                    # (no reset / no leaving the site).
+                    if (st.session_state.get("stage3") or {}).get("campaign_name") == "Express campaign":
+                        for v in todo:
+                            st.session_state["video_results"].pop(v["id"], None)
+                            st.session_state.pop(f"sel_{v['id']}", None)
                 except Exception as e:
                     s4_status.update(label=f"❌ {e}", state="error", expanded=True)
 
@@ -1146,12 +1161,13 @@ if videos_with_prompts:
 # ════════════════════════════════════════════════════════════
 # 🎬 Generated Videos — view + download
 # ════════════════════════════════════════════════════════════
-if st.session_state.get("stage4"):
+if st.session_state.get("video_history") or st.session_state.get("stage4"):
     st.markdown("---")
     st.header("🎬 Your generated videos")
-    st.caption("Click ▶ to watch, or ⬇️ to download to your computer.")
+    st.caption("All videos from this session, newest first. Click ▶ to watch, or ⬇️ to download.")
 
-    _outputs = st.session_state["stage4"]
+    # Prefer the full session history; fall back to the last run only.
+    _outputs = st.session_state.get("video_history") or st.session_state["stage4"]
     # Each entry can be (id, path) tuple or dict — normalize
     _normalized = []
     for item in _outputs:
@@ -1159,6 +1175,10 @@ if st.session_state.get("stage4"):
             _normalized.append({"id": item[0], "path": str(item[1])})
         elif isinstance(item, dict):
             _normalized.append(item)
+    # Unique display number per video (ids repeat in Express: always "1")
+    for _it in _normalized:
+        _it["label"] = (f"{_it.get('time', '')} · " if _it.get("time") else "") + Path(_it["path"]).stem
+    _hist_n = len(_normalized)
 
     _existing_vids = [Path(_it.get("path", "")) for _it in _normalized
                       if _it.get("path") and Path(_it.get("path", "")).exists()]
@@ -1197,7 +1217,7 @@ if st.session_state.get("stage4"):
                     _vid_id = _item.get("id", "?")
                     _path = Path(_item.get("path", ""))
                     if _path.exists():
-                        st.markdown(f"**Video #{_vid_id}** · {_path.name}")
+                        st.markdown(f"**🎬 {_item.get('label', _path.name)}**")
                         with open(_path, "rb") as _f:
                             _bytes = _f.read()
                         st.video(_bytes)
@@ -1211,6 +1231,16 @@ if st.session_state.get("stage4"):
                         )
                         _size_mb = len(_bytes) / 1024 / 1024
                         st.caption(f"{_size_mb:.1f} MB")
+                        if _item.get("prompt"):
+                            if st.button("✏️ Use this prompt again", key=f"reuse_{_path.name}",
+                                         use_container_width=True,
+                                         help="Puts this video's prompt back into Video #1 so you can tweak it and generate again."):
+                                _pr = _item["prompt"]
+                                # strip the auto-added audio rule — it's re-added on save
+                                _pr = _pr.split("\n\nAudio: no background music")[0]
+                                # Applied before the text box is drawn on the next run
+                                st.session_state["_pending_prompt_0"] = _pr
+                                st.rerun()
                     else:
                         st.warning(f"Video #{_vid_id} not found on disk.")
 

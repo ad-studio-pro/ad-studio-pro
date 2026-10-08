@@ -590,6 +590,33 @@ def _render_video_editor(project_root: Path) -> None:
                     _vs.update(label=f"❌ {_e}", state="error", expanded=True)
 
 
+def _clear_express(full: bool) -> None:
+    """New video (full=False): clear prompts + Stage-4 marks.
+    Full reset (full=True): also uploaded images, faces, references.
+    The session's video gallery ('video_history') is always kept."""
+    ss = st.session_state
+    for k in list(ss.keys()):
+        if not isinstance(k, str):
+            continue
+        if (k.startswith("ex_prompt_") or k.startswith("sel_")
+                or k in ("stage2", "stage3", "video_results")):
+            ss.pop(k, None)
+    if full:
+        for k in ("image_path", "image_paths", "image_roles", "ref_video_paths",
+                  "split_variant_paths", "split_variant_roles", "_autoname_sig",
+                  "sheet_variant_paths", "_sheets_src_sig", "_sheets_active",
+                  "ai_char_paths", "ai_char_confirmed", "ai_char_originals", "ai_char_prepared",
+                  "trusted_char_urls", "asset_ref_urls", "asset_ids_input",
+                  "_char_selected", "_lib_selected"):
+            ss.pop(k, None)
+        for k in list(ss.keys()):
+            if isinstance(k, str) and (k.startswith("char_use_") or k.startswith("lib_sel_")
+                                          or k.startswith("ex_img_role_")):
+                ss.pop(k, None)
+        # New uploader keys = empty upload boxes
+        ss["_ex_gen"] = int(ss.get("_ex_gen", 0)) + 1
+
+
 def render_express_ui(project_root: Path) -> None:
     """Render the Express UI. Populates st.session_state['stage3'] live."""
     st.header("⚡ Express — Prompts → Video")
@@ -600,27 +627,22 @@ def render_express_ui(project_root: Path) -> None:
 
     _render_video_editor(project_root)
 
-    # Big visible "Reset" button — clears all Express state so the user can
-    # start over without confusion.
-    reset_col, info_col = st.columns([1, 3])
-    with reset_col:
-        if st.button("🧹 Full reset", key="ex_reset_btn",
-                      help="Deletes all the prompts you wrote and resets Stage 4"):
-            for k in list(st.session_state.keys()):
-                if isinstance(k, str) and (
-                    k.startswith("ex_prompt_")
-                    or k.startswith("ex_dur_")
-                    or k.startswith("ex_ratio_")
-                    or k.startswith("sel_")
-                    or k in ("stage2", "stage3", "stage4", "video_results",
-                             "split_variant_paths", "split_variant_roles", "_autoname_sig",
-                             "sheet_variant_paths", "_sheets_src_sig", "_sheets_active",
-                             "ai_char_paths", "ai_char_confirmed", "ai_char_originals", "ai_char_prepared")
-                ):
-                    st.session_state.pop(k, None)
+    # Two clear restart buttons. Generated videos are NEVER wiped — they stay
+    # in "Your generated videos" below for the whole session.
+    _r1, _r2, _r3 = st.columns([1, 1, 2])
+    with _r1:
+        if st.button("🆕 New video", key="ex_new_btn", use_container_width=True,
+                     help="Clears the prompt only. Keeps images, faces and settings."):
+            _clear_express(full=False)
             st.rerun()
-    with info_col:
-        st.caption("💡 'Full reset' clears everything and starts from scratch. Useful if old prompts seem stuck.")
+    with _r2:
+        if st.button("🧹 Full reset", key="ex_reset_btn", use_container_width=True,
+                     help="Clears prompts, uploaded images, faces and references. Your videos stay below."):
+            _clear_express(full=True)
+            st.rerun()
+    with _r3:
+        st.caption("💡 After a video is ready you can just edit the prompt and press Generate again — "
+                   "no reset needed. All videos from this session stay listed below.")
 
     ex_engine = st.radio(
         "Video engine",
@@ -710,7 +732,7 @@ def render_express_ui(project_root: Path) -> None:
         "If the prompt mentions Image 1 / Image 2 — uploading is required. Otherwise optional.",
         type=["jpg", "jpeg", "png", "webp"],
         accept_multiple_files=True,
-        key="ex_uploader",
+        key=f"ex_uploader_{st.session_state.get('_ex_gen', 0)}",
     )
     if ex_uploaded:
         save_dir = project_root / "assets" / "product"
@@ -1029,7 +1051,7 @@ def render_express_ui(project_root: Path) -> None:
         "MP4 only, up to 3 files",
         type=["mp4", "mov", "webm"],
         accept_multiple_files=True,
-        key="ex_video_refs",
+        key=f"ex_video_refs_{st.session_state.get('_ex_gen', 0)}",
     )
     st.checkbox(
         "🫥 Auto-blur faces in reference videos (bypasses Seedance's filter)",
@@ -1056,6 +1078,9 @@ def render_express_ui(project_root: Path) -> None:
         st.session_state.pop("ref_video_paths", None)
 
     st.markdown(f"**📝 Write {int(ex_n)} prompts** (each one separate):")
+    if "_pending_prompt_0" in st.session_state:
+        st.session_state["ex_prompt_0"] = st.session_state.pop("_pending_prompt_0")
+        st.success("✏️ The prompt was loaded into Video #1 — tweak it and generate again.")
     ex_prompts = []
     for i in range(int(ex_n)):
         with st.expander(f"Video #{i+1}", expanded=(i == 0)):
