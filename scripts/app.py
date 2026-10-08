@@ -969,8 +969,10 @@ if videos_with_prompts:
                                     continuation = pg.generate_continuation_prompt(
                                         opener_prompt=chunk_prompts_used[-1],
                                         brief=video.get("scene_summary", ""),
-                                        image_paths=[Path(ip) for ip in st.session_state.get(
-                                            "image_paths", [st.session_state["image_path"]])],
+                                        # No product images (faces/prompt-only) is valid — never crash here.
+                                        image_paths=[Path(ip) for ip in (
+                                            st.session_state.get("image_paths")
+                                            or [st.session_state.get("image_path")]) if ip],
                                         video_path=chunk_videos[-1],
                                         last_frame_path=last_frame_path,
                                         target_duration=chunk_dur,
