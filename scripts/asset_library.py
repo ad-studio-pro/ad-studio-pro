@@ -38,24 +38,38 @@ VERSION = "2024-01-01"
 CREATE_ASSET_MIN_INTERVAL = 21.0   # Entry plan: 3 CreateAsset calls per minute
 FREE_PLAN_LIMIT = 50
 
-try:
-    import streamlit as st
-    _SECRETS = dict(st.secrets) if hasattr(st, "secrets") else {}
-except Exception:
-    _SECRETS = {}
+def _flat_secrets() -> dict:
+    """Read Streamlit Secrets LIVE (not cached at import), flattening any
+    [sections] and matching names case-insensitively."""
+    out = {}
+    try:
+        import streamlit as st
+        def walk(d):
+            for k, v in dict(d).items():
+                if hasattr(v, "items"):
+                    walk(v)
+                else:
+                    out.setdefault(str(k).strip().upper(), v)
+        walk(st.secrets)
+    except Exception:
+        pass
+    return out
 
 
 def _get(*keys, default=""):
+    sec = _flat_secrets()
     for k in keys:
-        v = os.getenv(k) or _SECRETS.get(k)
+        v = os.getenv(k) or sec.get(k.upper())
         if v:
-            return str(v).strip()
+            return str(v).strip().strip('"').strip("'").strip()
     return default
 
 
 def _creds():
-    ak = _get("BYTEPLUS_ACCESS_KEY", "BYTEPLUS_MODELARK_ACCESS_KEY", "BYTEPLUS_AK")
-    sk = _get("BYTEPLUS_SECRET_KEY", "BYTEPLUS_MODELARK_SECRET_KEY", "BYTEPLUS_SK")
+    ak = _get("BYTEPLUS_ACCESS_KEY", "BYTEPLUS_MODELARK_ACCESS_KEY", "BYTEPLUS_AK",
+              "BYTEPLUS_ACCESS_KEY_ID", "ACCESS_KEY_ID", "ACCESSKEYID")
+    sk = _get("BYTEPLUS_SECRET_KEY", "BYTEPLUS_MODELARK_SECRET_KEY", "BYTEPLUS_SK",
+              "BYTEPLUS_SECRET_ACCESS_KEY", "SECRET_ACCESS_KEY", "SECRETACCESSKEY")
     token = _get("BYTEPLUS_SESSION_TOKEN", "BYTEPLUS_MODELARK_SESSION_TOKEN")
     return ak, sk, token
 
