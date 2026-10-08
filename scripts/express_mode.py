@@ -159,8 +159,17 @@ def _wipe_non_express_stage_state():
             st.session_state.pop(key, None)
 
 
+SHOW_FULL_PIPELINE = False
+
+
 def render_mode_selector() -> bool:
-    """Returns True if the user picked Express mode."""
+    """Returns True if the user picked Express mode.
+
+    Full pipeline is hidden for now (not in use). Set SHOW_FULL_PIPELINE = True
+    to bring the selector back.
+    """
+    if not SHOW_FULL_PIPELINE:
+        return True
     mode = st.radio(
         "Work mode",
         ["⚡ Express — ready-made prompts → video generation (quick and simple)",
@@ -359,7 +368,7 @@ def _render_official_faces(project_root: Path) -> None:
     _ilf.reload(_tr)
 
     n_products = len(st.session_state.get("image_paths") or [])
-    with st.expander("🧑‍🎤 Faces in your video — official ByteDance methods (recommended)", expanded=False):
+    with st.expander("🧑‍🎤 Faces & My character library — official ByteDance (click to open)", expanded=False):
         st.caption(
             "Seedance blocks uploaded photos of faces. ByteDance's official ways around it "
             "(no tricks, no blocks): **A)** generate the character on your own ModelArk account "
@@ -657,14 +666,14 @@ def render_express_ui(project_root: Path) -> None:
         )
     with col_d:
         ex_default_dur = st.selectbox(
-            "Default duration (seconds)",
+            "Duration (seconds)",
             [2, 3, 4, 5, 8, 10, 15, 20, 25, 30, 40, 45, 60], index=6,
             format_func=_dur_label,
             key="ex_dur",
         )
     with col_r:
         ex_default_ratio = st.selectbox(
-            "Default aspect ratio",
+            "Aspect ratio",
             ["adaptive", "9:16", "16:9", "1:1", "4:3", "3:4", "21:9"],
             index=1,
             format_func=lambda x: {
@@ -897,16 +906,8 @@ def render_express_ui(project_root: Path) -> None:
                         key="ex_gen_size",
                         placeholder="e.g. a 25cm tall bottle / a palm-sized jar / a 10cm box",
                     )
-                _dur_opts = [10, 15, 20, 25, 30]
-                _top_dur = int(st.session_state.get("ex_dur", 15) or 15)
-                gen_dur = st.select_slider(
-                    "Video duration for the prompt (this is what counts — for both the prompt and the video)",
-                    options=_dur_opts,
-                    value=_top_dur if _top_dur in _dur_opts else 15,
-                    key="ex_gen_dur",
-                    help=(f"On {'Seedance 2.5' if _single_take_max == 30 else 'Seedance 2.0'} a single take covers up to "
-                          f"{_single_take_max}s. Longer than that is generated in chunks and stitched automatically."),
-                )
+                # Duration = the one setting at the top (no second control).
+                gen_dur = int(ex_default_dur)
                 _per_variant = max(1, (int(gen_dur) - 4) // max(1, len(ex_image_paths)))
                 st.caption(
                     f"⏱ At {int(gen_dur)} seconds, each of the {len(ex_image_paths)} colors gets ~{_per_variant} seconds of screen time"
@@ -923,7 +924,6 @@ def render_express_ui(project_root: Path) -> None:
                 if st.button("🪄 Build a prompt for all products → Video #1", type="primary",
                               use_container_width=True, key="ex_gen_btn"):
                     st.session_state["ex_prompt_0"] = gen_prompt
-                    st.session_state["ex_dur_0"] = int(gen_dur)
                     st.success("✅ The prompt was placed into Video #1 below — you can edit it, then scroll to Stage 4 to generate.")
 
                 # Premium path: Claude (Opus) writes the prompt with the full
@@ -967,7 +967,6 @@ def render_express_ui(project_root: Path) -> None:
                                     system=SKILL_INSTRUCTIONS, max_tokens=4000,
                                 )
                                 st.session_state["ex_prompt_0"] = parse_prompt_from_response(_resp)
-                                st.session_state["ex_dur_0"] = int(gen_dur)
                                 st.success("✅ Claude's prompt was placed into Video #1 below — scroll down to review and edit.")
                             except Exception as _e:
                                 st.error(f"Claude failed: {_e}")
@@ -1181,27 +1180,11 @@ def render_express_ui(project_root: Path) -> None:
                 ),
                 label_visibility="collapsed",
             )
-            dc, rc = st.columns([1, 1])
-            with dc:
-                dur_i = st.number_input(
-                    f"Video {i+1} duration (seconds)",
-                    min_value=2, max_value=60, value=int(ex_default_dur), step=1,
-                    key=f"ex_dur_{i}",
-                )
-            with rc:
-                ratio_options = ["(default)", "adaptive", "9:16", "16:9", "1:1", "4:3", "3:4", "21:9"]
-                ratio_i = st.selectbox(
-                    f"Video {i+1} aspect ratio",
-                    ratio_options,
-                    index=0,
-                    key=f"ex_ratio_{i}",
-                    help="(default) uses the ratio you picked above",
-                )
-            actual_ratio = ex_default_ratio if ratio_i == "(default)" else ratio_i
+            # Duration + aspect ratio come from the settings at the top.
             ex_prompts.append({
                 "prompt": txt,
-                "duration": dur_i,
-                "aspect_ratio": actual_ratio,
+                "duration": int(ex_default_dur),
+                "aspect_ratio": ex_default_ratio,
             })
 
     valid = [p for p in ex_prompts if p["prompt"].strip()]
