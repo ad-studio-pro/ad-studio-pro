@@ -894,6 +894,17 @@ if videos_with_prompts:
                             f"🧑‍🎤 {len(extra_ref_urls)} trusted face reference(s) attached as "
                             f"@Image {_p + 1}" + (f"–{_p + len(extra_ref_urls)}" if len(extra_ref_urls) > 1 else ""))
                     base_image_urls = (product_image_urls + extra_ref_urls + ai_char_urls)[:9]
+                    # User-chosen numbering (🔢 Image numbering): reorder products + faces.
+                    _order = st.session_state.get("image_order") or []
+                    if _order:
+                        _by_key = {"p:" + str(p): u for p, u in zip(img_paths, product_image_urls)}
+                        _by_key.update({"f:" + u: u for u in extra_ref_urls})
+                        _picked = [_by_key[k] for k in _order if k in _by_key]
+                        _rest = [u for u in base_image_urls if u not in _picked]
+                        base_image_urls = (_picked + _rest)[:9]
+                        _names = {"p:" + str(p): f"product {Path(p).name}" for p in img_paths}
+                        s4_status.write("🔢 Your image numbering: " + " · ".join(
+                            f"@Image {i}={_names.get(k, 'face')}" for i, k in enumerate(_order, 1) if k in _by_key))
                     base_image_url = base_image_urls[0] if base_image_urls else None  # backward-compat
 
                     # Reference audio (Audio Studio voice + uploaded MP3s) — once per batch

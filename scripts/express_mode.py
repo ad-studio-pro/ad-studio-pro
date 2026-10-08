@@ -455,7 +455,79 @@ def _render_official_faces(project_root: Path) -> None:
                       ("- Product image → @Image 1" if n_products == 1 else "- (no product images)")]
             for _k in range(len(_faces)):
                 _lines.append(f"- Face reference {_k + 1} → **@Image {n_products + _k + 1}**")
-            st.info("**In your prompt, refer to them like this** (never by Asset ID):\n\n" + "\n".join(_lines))
+            st.info("**Default numbering** (never refer to a face by its Asset ID). "
+                    "To change it, open **🔢 Image numbering** below.\n\n" + "\n".join(_lines))
+
+
+def _face_label(url: str, idx: int) -> str:
+    """Friendly name for a face reference (library name if we know it)."""
+    if url.startswith("asset://"):
+        aid = url[len("asset://"):]
+        cache = st.session_state.get("_lib_cache") or {}
+        for a in (cache.get("aigc") or []) + (cache.get("real") or []):
+            if a.get("Id") == aid:
+                return a.get("Name") or (cache.get("groups") or {}).get(a.get("GroupId"), "") or aid[-6:]
+        return f"Library {aid[-6:]}"
+    return f"Seedream character {idx}"
+
+
+def _render_image_order() -> None:
+    """🔢 Let the user decide which reference is @Image 1, @Image 2 … across
+    product images AND face references. Saved as st.session_state['image_order']
+    (list of keys 'p:<path>' / 'f:<url>'), applied by Stage 4."""
+    prods = [str(p) for p in (st.session_state.get("image_paths") or [])]
+    faces = list(st.session_state.get("trusted_char_urls") or []) + \
+        list(st.session_state.get("asset_ref_urls") or [])
+    roles = st.session_state.get("image_roles") or []
+    items = []
+    for i, p in enumerate(prods):
+        name = (roles[i] if i < len(roles) and roles[i] else Path(p).name)
+        items.append({"key": "p:" + p, "label": f"🖼 Product · {name}", "img": p})
+    for i, u in enumerate(faces, 1):
+        items.append({"key": "f:" + u, "label": f"🧑‍🎤 Face · {_face_label(u, i)}",
+                      "img": None if u.startswith("asset://") else u})
+    if len(items) < 2:
+        st.session_state.pop("image_order", None)
+        return
+
+    sig = "|".join(it["key"] for it in items)
+    if st.session_state.get("_order_sig") != sig:
+        # New set of images → reset to the default order (products first, then faces)
+        st.session_state["_order_sig"] = sig
+        for k in [k for k in st.session_state.keys() if isinstance(k, str) and k.startswith("ord_")]:
+            st.session_state.pop(k, None)
+
+    n = len(items)
+    with st.expander(f"🔢 Image numbering — choose which picture is @Image 1, 2, 3… ({n} images)",
+                     expanded=False):
+        st.caption("Pick a number for each picture. Your prompt must use these same numbers "
+                   "(e.g. 'the woman from @Image 1 holds the ring from @Image 3').")
+        cols = st.columns(min(n, 4))
+        chosen = []
+        for i, it in enumerate(items):
+            with cols[i % 4]:
+                if it["img"]:
+                    try:
+                        st.image(it["img"], width=110)
+                    except Exception:
+                        pass
+                st.caption(it["label"])
+                num = st.selectbox("Number", list(range(1, n + 1)), index=i,
+                                   key=f"ord_{i}", format_func=lambda x: f"@Image {x}",
+                                   label_visibility="collapsed")
+                chosen.append(num)
+        if len(set(chosen)) != n:
+            st.error("Two pictures have the same number — give each picture a different number. "
+                     "Until then the default order is used.")
+            st.session_state.pop("image_order", None)
+            return
+        ordered = [it for _, it in sorted(zip(chosen, items), key=lambda z: z[0])]
+        st.session_state["image_order"] = [it["key"] for it in ordered]
+        st.info("**Your numbering:**\n\n" + "\n".join(
+            f"- **@Image {k}** → {it['label']}" for k, it in enumerate(ordered, 1)))
+        if chosen != list(range(1, n + 1)) and prods:
+            st.caption("⚠️ The automatic product-prompt builder assumes products come first — "
+                       "if you changed the order, check the numbers in your prompt.")
 
 
 def _render_video_editor(project_root: Path) -> None:
@@ -1041,6 +1113,7 @@ def render_express_ui(project_root: Path) -> None:
                     st.code(build_product_asset_sheet_prompt(label, sheet_mode), language=None)
 
     _render_official_faces(project_root)
+    _render_image_order()
 
     # Old "upload your own AI face" fallback removed (blocked by the filter).
     st.session_state.pop("ai_char_paths", None)
