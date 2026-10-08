@@ -116,6 +116,68 @@ def _upload_to_tmpfiles(name: str, data: bytes) -> str:
     return raw.replace("http://", "https://").replace("tmpfiles.org/", "tmpfiles.org/dl/")
 
 
+def _upload_to_uguu(name: str, data: bytes) -> str:
+    r = requests.post("https://uguu.se/upload",
+                      files={"files[]": (name, data, "image/jpeg")}, timeout=120)
+    r.raise_for_status()
+    files = (r.json() or {}).get("files") or []
+    if not files or not files[0].get("url"):
+        raise RuntimeError(f"uguu: no url ({r.text[:120]})")
+    return files[0]["url"]
+
+
+def _upload_to_litterbox(name: str, data: bytes) -> str:
+    r = requests.post("https://litterbox.catbox.moe/resources/internals/api.php",
+                      data={"reqtype": "fileupload", "time": "24h"},
+                      files={"fileToUpload": (name, data, "image/jpeg")}, timeout=120)
+    r.raise_for_status()
+    url = r.text.strip()
+    if not url.startswith("http"):
+        raise RuntimeError(f"litterbox: {url[:120]}")
+    return url
+
+
+def _serves_real_image(url: str) -> str:
+    """Fetch the URL the way a server-side fetcher would (Go client UA) and
+    confirm it returns actual image bytes — not an HTML page. Returns '' if OK,
+    else the reason."""
+    try:
+        r = requests.get(url, timeout=30, allow_redirects=True,
+                         headers={"User-Agent": "Go-http-client/1.1"})
+    except Exception as e:
+        return f"fetch failed: {str(e)[:80]}"
+    if r.status_code != 200:
+        return f"HTTP {r.status_code}"
+    head = r.content[:12]
+    if head.startswith(b"\xff\xd8\xff") or head.startswith(b"\x89PNG") or head[8:12] == b"WEBP":
+        return ""
+    return f"not an image (got {r.headers.get('Content-Type', '?')})"
+
+
+def host_image_bytes_verified(data: bytes, name: str = "image.jpg", log=print) -> str:
+    """Like host_image_bytes, but only returns a URL that is VERIFIED to serve
+    raw image bytes to a server fetcher (needed for ModelArk CreateAsset,
+    which rejects HTML landing pages with 'FormatUnsupported')."""
+    errors = []
+    for host, fn in (("imgbb", lambda: upload_to_imgbb(name, data)),
+                     ("litterbox", lambda: _upload_to_litterbox(name, data)),
+                     ("uguu", lambda: _upload_to_uguu(name, data)),
+                     ("tmpfiles", lambda: _upload_to_tmpfiles(name, data))):
+        try:
+            url = fn()
+        except Exception as e:
+            errors.append(f"{host}: {str(e)[:90]}")
+            continue
+        bad = _serves_real_image(url)
+        if bad:
+            errors.append(f"{host}: {bad}")
+            continue
+        log(f"    🌐 image hosted via {host}")
+        return url
+    raise RuntimeError("Could not get a public image link that BytePlus can read — "
+                       + "; ".join(errors))
+
+
 def host_image_bytes(data: bytes, name: str = "image.jpg", log=print) -> str:
     """Put normalized JPEG bytes on a public host (imgbb → tmpfiles). Cached."""
     key = hashlib.sha1(data).hexdigest()

@@ -271,7 +271,10 @@ def _render_character_library(project_root: Path) -> list:
         _go = st.button("⬆️ Upload to my library", type="primary", key="lib_upload_btn",
                         disabled=not (_cname.strip() and _cfiles), use_container_width=True)
         if _go:
-            from upload_image import _prepare_for_upload, host_image_bytes
+            import upload_image as _upi
+            _ill.reload(_upi)
+            _prepare_for_upload = _upi._prepare_for_upload
+            host_image_bytes = _upi.host_image_bytes_verified
             with st.status(f"Uploading '{_cname.strip()}'…", expanded=True) as _s:
                 try:
                     _gid = _al.ensure_group(_cname.strip())
