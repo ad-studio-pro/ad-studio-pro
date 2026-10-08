@@ -233,6 +233,119 @@ def _save_express_plan(valid_prompts, gen_audio):
     return new_plan
 
 
+def _render_character_library(project_root: Path) -> list:
+    """C) Upload our AI characters to the ModelArk Virtual Portrait library and
+    pick verified characters (AI + Real-human) for the video. Returns the list
+    of selected asset:// references."""
+    import importlib as _ill
+    import asset_library as _al
+    _ill.reload(_al)
+
+    st.markdown("**C) My character library (upload once, reuse in every video)**")
+    if not _al.is_configured():
+        st.info(
+            "To upload AI characters straight from here, add two keys to **Streamlit → Settings → "
+            "Secrets**:\n\n```\nBYTEPLUS_ACCESS_KEY = \"AKLT...\"\nBYTEPLUS_SECRET_KEY = \"...\"\n```\n"
+            "Create them in the BytePlus console → your name (top right) → **API Access Keys**. "
+            "(These are different from the ARK API key.) Until then you can still paste Asset IDs above."
+        )
+        return []
+
+    # ---- Upload a new AI character ----
+    with st.container(border=True):
+        st.markdown("➕ **Add an AI character** (must not resemble a real person)")
+        _cname = st.text_input("Character name", key="lib_new_name",
+                               placeholder="e.g. Young man black jacket")
+        _cfiles = st.file_uploader(
+            "Images of THIS character (1–4). Best: a front face close-up + a full-body shot, vertical.",
+            type=["jpg", "jpeg", "png", "webp"], accept_multiple_files=True, key="lib_new_files")
+        _go = st.button("⬆️ Upload to my library", type="primary", key="lib_upload_btn",
+                        disabled=not (_cname.strip() and _cfiles), use_container_width=True)
+        if _go:
+            from upload_image import _prepare_for_upload, host_image_bytes
+            with st.status(f"Uploading '{_cname.strip()}'…", expanded=True) as _s:
+                try:
+                    _gid = _al.ensure_group(_cname.strip())
+                    _s.write(f"📁 Character group: {_gid}")
+                    _ok, _fail = 0, 0
+                    for _i, _uf in enumerate(_cfiles[:4], 1):
+                        _tmp = Path(project_root) / "assets" / "lib_upload" / _uf.name
+                        _tmp.parent.mkdir(parents=True, exist_ok=True)
+                        _tmp.write_bytes(_uf.getvalue())
+                        _data = _prepare_for_upload(_tmp)
+                        _url = host_image_bytes(_data, f"char_{_i}.jpg", log=_s.write)
+                        if _i > 1:
+                            _s.write("  ⏳ waiting ~20s (free plan: 3 uploads per minute)…")
+                        _aid = _al.create_asset(_gid, _url, name=f"{_cname.strip()} {_i}")
+                        _s.write(f"  📤 Image {_i} sent → {_aid}, waiting for approval…")
+                        _res = _al.wait_active(_aid, log=_s.write)
+                        if _res.get("Status") == "Active":
+                            _ok += 1
+                            _s.write(f"  ✅ Image {_i} approved")
+                        else:
+                            _fail += 1
+                            _s.write(f"  ❌ Image {_i} not approved: "
+                                     f"{_res.get('Status') or 'timeout'} {_res.get('ErrorMessage') or ''}")
+                    _s.update(label=f"Done — {_ok} approved, {_fail} failed",
+                              state="complete" if _ok else "error")
+                    st.session_state.pop("_lib_cache", None)
+                except Exception as _e:
+                    _s.update(label=f"❌ {_e}", state="error", expanded=True)
+
+    # ---- Library list ----
+    if st.button("🔄 Refresh library", key="lib_refresh"):
+        st.session_state.pop("_lib_cache", None)
+    _cache = st.session_state.get("_lib_cache")
+    if _cache is None:
+        try:
+            _cache = {
+                "aigc": _al.list_assets("AIGC"),
+                "real": _al.list_assets("LivenessFace"),
+                "groups": {g["Id"]: g.get("Name", "") for g in _al.list_groups("AIGC")},
+            }
+            st.session_state["_lib_cache"] = _cache
+        except Exception as _e:
+            st.error(f"Couldn't load the library: {_e}")
+            return []
+
+    _all = [("AI", a) for a in _cache["aigc"]] + [("Real", a) for a in _cache["real"]]
+    st.caption(f"{len(_all)} / {_al.FREE_PLAN_LIMIT} assets used (free plan). "
+               "Delete characters you no longer need to free space.")
+    if not _all:
+        st.caption("No approved characters yet.")
+        return []
+
+    _sel = st.session_state.setdefault("_lib_selected", {})
+    _cols = st.columns(4)
+    for _i, (_kind, _a) in enumerate(_all):
+        _aid = _a.get("Id", "")
+        _label = _a.get("Name") or _cache["groups"].get(_a.get("GroupId"), "") or _aid[-6:]
+        with _cols[_i % 4]:
+            if _a.get("URL"):
+                st.image(_a["URL"], use_container_width=True)
+            _sel[_aid] = st.checkbox(f"{'🧑‍🎤' if _kind == 'AI' else '👤'} {_label}",
+                                     value=_sel.get(_aid, False), key=f"lib_sel_{_aid}")
+
+    # ---- Delete a whole AI character (frees space) ----
+    _gmap = _cache["groups"]
+    if _gmap:
+        with st.expander("🗑 Delete an AI character (frees space — permanent)", expanded=False):
+            _gid_del = st.selectbox("Character", list(_gmap.keys()), key="lib_del_pick",
+                                    format_func=lambda g: _gmap.get(g) or g)
+            _confirm = st.checkbox("Yes, delete this character and all its images permanently",
+                                   key="lib_del_confirm")
+            if st.button("Delete", key="lib_del_btn", disabled=not _confirm):
+                try:
+                    _al.delete_group(_gid_del)
+                    st.session_state.pop("_lib_cache", None)
+                    st.success("Deleted.")
+                    st.rerun()
+                except Exception as _e:
+                    st.error(str(_e))
+
+    return [f"asset://{aid}" for aid, on in _sel.items() if on]
+
+
 def _render_official_faces(project_root: Path) -> None:
     """Official ByteDance face support for Seedance 2.0/2.5 — no filter fights.
       A) Trusted AI characters: Seedream 5.0 lite text-to-image on the SAME
@@ -312,9 +425,16 @@ def _render_official_faces(project_root: Path) -> None:
                 continue
             _ref = normalize_asset_ref(_line)
             (_assets if _ref else _bad).append(_ref or _line.strip())
-        st.session_state["asset_ref_urls"] = _assets
         if _bad:
             st.warning("Not an Asset ID (should start with 'asset-'): " + ", ".join(_bad))
+
+        st.markdown("---")
+        # ── C) My character library (Virtual Portrait + Real-human, via API) ──
+        _lib_selected = _render_character_library(project_root)
+        for _ref in _lib_selected:
+            if _ref not in _assets:
+                _assets.append(_ref)
+        st.session_state["asset_ref_urls"] = _assets
 
         # ── Mapping preview: how to refer to them in the prompt ──
         _faces = st.session_state["trusted_char_urls"] + _assets
