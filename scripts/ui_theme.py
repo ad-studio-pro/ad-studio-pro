@@ -1,146 +1,173 @@
 """
-UI theme v2 — global CSS + hero + pipeline stepper for Ad Studio Pro.
+UI theme v3 — "studio" layout for Ad Studio Pro.
 
-Goals: clear visual hierarchy, LTR English, obvious "where am I in the flow".
+Design language (inspired by modern AI-video studios):
+  • near-black surfaces, soft 1px borders, rounded 14px panels
+  • a narrow CREATE panel on the left, the RESULTS FEED on the right
+    (the feed is a st.container(key="asp_feed") pinned with CSS)
+  • small muted labels, compact controls, ONE bright Generate button
 
 Usage (app.py, right after st.set_page_config):
-    from ui_theme import inject_theme, render_hero, render_stepper
-    inject_theme()
-    render_hero(user_email)
-    render_stepper([...])   # inside the Full-pipeline branch
+    inject_theme(); render_topbar(email)
 """
 
 import streamlit as st
 
+ACCENT = "#C8F560"
+
 _CSS = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;600;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-html, body, [data-testid="stAppViewContainer"] * {
-    font-family: 'Heebo', 'Segoe UI', sans-serif;
+:root{
+  --bg:#0A0A0B; --panel:#131315; --panel2:#1A1A1D; --line:#26262B;
+  --text:#F2F2F3; --muted:#8C8C95; --accent:#C8F560; --accent-ink:#0A0A0B;
+  --left-w: 540px;
 }
-/* CRITICAL: restore Streamlit's icon fonts — the Heebo override above turns
-   Material icon ligatures into raw text like "keyboard_arrow_right" */
+html, body, [data-testid="stAppViewContainer"] * {
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+}
+/* keep Streamlit's icon fonts working */
 span[data-testid="stIconMaterial"], [data-testid="stIconMaterial"],
 .material-icons, [class^="material-symbols"], [class*=" material-symbols"] {
-    font-family: 'Material Symbols Outlined', 'Material Symbols Rounded', 'Material Icons' !important;
+  font-family: 'Material Symbols Outlined','Material Symbols Rounded','Material Icons' !important;
 }
-/* Videos: keep vertical 9:16 results a sane size, centered */
-[data-testid="stVideo"] video, .stVideo video, video {
-    max-height: 520px !important;
-    width: auto !important;
-    max-width: 100% !important;
-    display: block;
-    margin: 0 auto;
-    border-radius: 12px;
-    background: #000;
+[data-testid="stAppViewContainer"], [data-testid="stHeader"] { background: var(--bg); }
+[data-testid="stHeader"] { height: 2.6rem; }
+
+/* ── page frame ─────────────────────────────────────────── */
+[data-testid="stMainBlockContainer"], .block-container {
+  padding-top: 3rem !important; padding-bottom: 3rem;
 }
-[data-testid="stAppViewContainer"] .block-container {
-    padding-top: 1.2rem;
-    max-width: 1200px;
+/* STUDIO LAYOUT: when the feed exists, the main column becomes the left panel */
+@media (min-width: 1100px){
+  [data-testid="stMainBlockContainer"]:has(.st-key-asp_feed),
+  .block-container:has(.st-key-asp_feed){
+    max-width: var(--left-w) !important; margin-left: 16px !important; margin-right: 0 !important;
+    padding-left: 0 !important; padding-right: 0 !important;
+  }
+  .st-key-asp_feed{
+    position: fixed !important; top: 3rem; bottom: 14px;
+    left: calc(var(--left-w) + 34px); right: 16px; width: auto !important;
+    overflow-y: auto; overflow-x: hidden;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 18px;
+    padding: 16px 18px; z-index: 5;
+  }
+  .st-key-asp_feed::-webkit-scrollbar{ width: 8px; }
+  .st-key-asp_feed::-webkit-scrollbar-thumb{ background:#2a2a30; border-radius: 8px; }
+}
+@media (max-width: 1099px){
+  .st-key-asp_feed{ border-top:1px solid var(--line); margin-top: 18px; padding-top: 12px; }
 }
 
-/* ── Typography ─────────────────────────────────────────── */
-[data-testid="stAppViewContainer"] p, [data-testid="stAppViewContainer"] label {
-    font-size: 1rem;
+/* ── typography ─────────────────────────────────────────── */
+[data-testid="stAppViewContainer"] p, [data-testid="stAppViewContainer"] li { font-size: .92rem; }
+[data-testid="stWidgetLabel"] p, [data-testid="stAppViewContainer"] label p {
+  font-size: .78rem !important; color: var(--muted) !important; font-weight: 500;
+  letter-spacing: .01em;
 }
-[data-testid="stCaptionContainer"] { opacity: .8; }
-
-/* ── Section headers = step cards ───────────────────────── */
+[data-testid="stCaptionContainer"] { color: var(--muted); font-size: .8rem; }
+[data-testid="stAppViewContainer"] h1 { font-size: 1.25rem; font-weight: 700; }
 [data-testid="stAppViewContainer"] h2 {
-    background: linear-gradient(90deg, rgba(139,92,246,.16), rgba(139,92,246,0));
-    border-left: 5px solid #8B5CF6;
-    padding-left: 14px;
-    border-radius: 10px;
-    padding: 10px 14px;
-    font-weight: 800;
-    font-size: 1.35rem;
-    margin-top: 2rem;
+  font-size: .78rem !important; font-weight: 700 !important; text-transform: uppercase;
+  letter-spacing: .08em; color: var(--muted) !important;
+  margin: 1.4rem 0 .4rem !important; padding: 0 !important; background: none !important; border: 0 !important;
 }
-[data-testid="stAppViewContainer"] h3 { font-weight: 700; }
+[data-testid="stAppViewContainer"] h3 { font-size: 1rem; font-weight: 700; }
+hr { border-color: var(--line) !important; margin: .9rem 0 !important; }
 
-/* ── Cards & controls ───────────────────────────────────── */
-[data-testid="stExpander"] {
-    border: 1px solid rgba(148, 163, 184, .22);
-    border-radius: 14px;
-    background: rgba(22, 26, 40, .55);
-    margin-bottom: .45rem;
+/* ── panels (expanders) ─────────────────────────────────── */
+[data-testid="stExpander"] details{
+  background: var(--panel); border: 1px solid var(--line) !important; border-radius: 14px !important;
 }
-[data-testid="stExpander"] summary { font-weight: 600; }
+[data-testid="stExpander"]{ margin-bottom: .5rem; }
+[data-testid="stExpander"] summary{ font-weight: 600; font-size: .9rem; padding: .7rem .9rem; }
+[data-testid="stExpander"] summary:hover{ color: var(--accent); }
 
-.stButton > button, .stDownloadButton > button, .stLinkButton > a {
-    border-radius: 10px;
-    font-weight: 700;
-    min-height: 2.6rem;
-    transition: all .15s ease;
+/* ── inputs ─────────────────────────────────────────────── */
+[data-baseweb="input"], [data-baseweb="select"] > div, [data-baseweb="textarea"],
+[data-testid="stNumberInput"] input, textarea {
+  background: var(--panel2) !important; border-color: var(--line) !important; border-radius: 12px !important;
 }
-.stButton > button[kind="primary"] {
-    background: linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%);
-    border: none;
-    box-shadow: 0 4px 14px rgba(139, 92, 246, .35);
-    font-size: 1.05rem;
+textarea { font-size: .92rem !important; line-height: 1.5 !important; }
+[data-baseweb="select"] > div:hover, [data-baseweb="input"]:hover, [data-baseweb="textarea"]:hover{
+  border-color: #3a3a42 !important;
 }
-.stButton > button[kind="primary"]:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 18px rgba(139, 92, 246, .5);
+[data-testid="stFileUploaderDropzone"]{
+  background: var(--panel2); border: 1px dashed #34343b; border-radius: 14px;
 }
+[data-testid="stFileUploaderDropzone"]:hover{ border-color: var(--accent); }
+/* radios as pills */
+[data-testid="stRadio"] [role="radiogroup"]{ gap: 6px; flex-wrap: wrap; }
+[data-testid="stRadio"] [role="radiogroup"] > label{
+  background: var(--panel2); border: 1px solid var(--line); border-radius: 999px;
+  padding: 5px 12px 5px 8px; margin: 0 !important;
+}
+[data-testid="stRadio"] [role="radiogroup"] > label:has(input:checked){
+  border-color: var(--accent); background: rgba(200,245,96,.08);
+}
+[data-testid="stRadio"] [role="radiogroup"] > label p{ font-size: .82rem !important; color: var(--text) !important; }
 
-[data-testid="stAlert"] { border-radius: 12px; }
-[data-testid="stSidebar"] { border-left: 1px solid rgba(139,92,246,.2); }
-[data-testid="stFileUploaderDropzone"] {
-    border: 2px dashed rgba(139,92,246,.45);
-    border-radius: 14px;
-    background: rgba(139,92,246,.06);
+/* ── buttons ────────────────────────────────────────────── */
+.stButton > button, .stDownloadButton > button, .stLinkButton > a{
+  border-radius: 12px; font-weight: 600; font-size: .86rem; min-height: 2.4rem;
+  background: var(--panel2); border: 1px solid var(--line); color: var(--text);
+  transition: all .15s ease;
 }
+.stButton > button:hover, .stDownloadButton > button:hover, .stLinkButton > a:hover{
+  border-color: #44444c; color: #fff; background: #202024;
+}
+.stButton > button[kind="primary"], .stDownloadButton > button[kind="primary"]{
+  background: var(--accent) !important; color: var(--accent-ink) !important; border: none !important;
+  font-weight: 800; font-size: 1rem; min-height: 3rem; letter-spacing: .02em;
+  box-shadow: 0 6px 24px rgba(200,245,96,.18);
+}
+.stButton > button[kind="primary"] p{ color: var(--accent-ink) !important; font-weight: 800; }
+.stButton > button[kind="primary"]:hover{ filter: brightness(1.06); transform: translateY(-1px); }
+.stButton > button[kind="primary"]:disabled{ background:#2a2a2f !important; color:#666 !important; box-shadow:none; }
 
-/* ── Hero ───────────────────────────────────────────────── */
-.asp-hero {
-    background: linear-gradient(120deg, rgba(139,92,246,.3) 0%, rgba(30,27,75,.6) 55%, rgba(11,14,23,0) 100%);
-    border: 1px solid rgba(139,92,246,.3);
-    border-radius: 18px;
-    padding: 18px 24px 14px;
-    margin-bottom: .8rem;
+/* ── alerts, status, video ──────────────────────────────── */
+[data-testid="stAlert"]{ border-radius: 12px; border: 1px solid var(--line); }
+[data-testid="stStatusWidget"], [data-testid="stExpander"] [data-testid="stStatus"]{ border-radius: 12px; }
+[data-testid="stVideo"] video, video{
+  width: 100% !important; max-height: 70vh !important; border-radius: 14px; background: #000; display:block;
 }
-.asp-hero h1 {
-    margin: 0 0 2px; font-size: 1.9rem; font-weight: 800;
-    background: linear-gradient(90deg, #C4B5FD, #F4F5F9);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-}
-.asp-hero p { margin: 0; opacity: .78; font-size: .95rem; }
-.asp-hero span.asp-badge {
-    display: inline-block; font-size: .74rem; font-weight: 600;
-    padding: 2px 10px; margin-left: 6px; margin-top: 8px; border-radius: 999px;
-    background: rgba(139,92,246,.18); border: 1px solid rgba(139,92,246,.4);
-    color: #C4B5FD;
-}
+[data-testid="stSidebar"]{ background: var(--panel); border-right: 1px solid var(--line); }
 
-/* ── Stepper ────────────────────────────────────────────── */
-.asp-stepper {
-    display: flex; gap: 8px; flex-wrap: wrap;
-    margin: 4px 0 10px;
+/* ── top bar ────────────────────────────────────────────── */
+.asp-top{ display:flex; align-items:center; gap:10px; margin: 0 0 14px; }
+.asp-logo{
+  width:30px; height:30px; border-radius:9px; background: var(--accent); color: var(--accent-ink);
+  display:flex; align-items:center; justify-content:center; font-weight:900; font-size:.9rem;
 }
-.asp-step {
-    display: flex; align-items: center; gap: 8px;
-    padding: 8px 14px; border-radius: 12px; font-size: .92rem; font-weight: 600;
-    border: 1px solid rgba(148,163,184,.25);
-    background: rgba(22,26,40,.6); color: #94A3B8;
+.asp-brand{ font-weight:800; font-size:1.05rem; letter-spacing:-.01em; }
+.asp-chip{
+  font-size:.7rem; font-weight:600; color: var(--muted); border:1px solid var(--line);
+  padding: 2px 9px; border-radius: 999px; background: var(--panel);
 }
-.asp-step .n {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 22px; height: 22px; border-radius: 50%;
-    background: rgba(148,163,184,.2); font-size: .8rem;
+.asp-user{ margin-left:auto; font-size:.75rem; color: var(--muted); }
+
+/* ── feed cards ─────────────────────────────────────────── */
+.asp-feed-head{ display:flex; align-items:baseline; gap:10px; margin-bottom: 4px; }
+.asp-feed-head .t{ font-size:1.05rem; font-weight:800; }
+.asp-feed-head .c{ font-size:.78rem; color: var(--muted); }
+[class*="st-key-asp_card_"]{
+  background: var(--bg); border: 1px solid var(--line); border-radius: 16px; padding: 12px;
+  margin-bottom: 12px;
 }
-.asp-step.done {
-    border-color: rgba(52,211,153,.5); color: #6EE7B7;
-    background: rgba(6,78,59,.25);
+[class*="st-key-asp_card_"]:hover{ border-color: #34343b; }
+.asp-tags{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom: 8px; }
+.asp-tag{ font-size:.7rem; font-weight:600; padding: 2px 8px; border-radius: 999px;
+  background: var(--panel2); border:1px solid var(--line); color:#cfcfd4; }
+.asp-tag.engine{ color: var(--accent); border-color: rgba(200,245,96,.35); }
+.asp-prompt{
+  font-size:.82rem; line-height:1.5; color:#bdbdc4; white-space: pre-wrap;
+  max-height: 11.5em; overflow-y: auto; padding-right: 4px; margin-bottom: 10px;
 }
-.asp-step.done .n { background: rgba(52,211,153,.25); }
-.asp-step.current {
-    border-color: #8B5CF6; color: #E9D5FF;
-    background: rgba(88,28,135,.3);
-    box-shadow: 0 0 12px rgba(139,92,246,.35);
+.asp-empty{
+  border: 1px dashed #2e2e34; border-radius: 16px; padding: 48px 20px; text-align:center; color: var(--muted);
 }
-.asp-step.current .n { background: #8B5CF6; color: white; }
+.asp-empty b{ display:block; color: var(--text); font-size: 1rem; margin-bottom: 6px; }
 </style>
 """
 
@@ -150,51 +177,42 @@ def inject_theme() -> None:
     st.markdown(_CSS, unsafe_allow_html=True)
 
 
-def render_hero(user_email: str = "") -> None:
-    email_line = f" · Hello <b>{user_email}</b>" if user_email else ""
+def render_topbar(user_email: str = "") -> None:
+    user = f'<span class="asp-user">{user_email}</span>' if user_email else ""
     st.markdown(
         f"""
-<div class="asp-hero">
-  <h1>🎬 Ad Studio Pro</h1>
-  <p>From product photo to finished ad video — research, plan, prompts, video{email_line}</p>
-  <div>
-    <span class="asp-badge">Seedance 2.0</span>
-    <span class="asp-badge">Seed Audio 1.0</span>
-    <span class="asp-badge">Up to 9 product images per video</span>
-    <span class="asp-badge">Video + audio reference</span>
-  </div>
+<div class="asp-top">
+  <div class="asp-logo">A</div>
+  <div class="asp-brand">Ad Studio Pro</div>
+  <span class="asp-chip">Seedance 2.0 · 2.5</span>
+  {user}
 </div>
 """,
         unsafe_allow_html=True,
     )
 
 
-def render_stepper(steps) -> None:
-    """Pipeline progress pills.
+# Backward-compat: older code calls render_hero
+def render_hero(user_email: str = "") -> None:
+    render_topbar(user_email)
 
-    steps: list of (label, state) where state in {"done", "current", "todo"}.
-    """
+
+def render_stepper(steps) -> None:
+    """Pipeline progress pills (Full pipeline only)."""
     items = []
     for i, (label, state) in enumerate(steps, 1):
         icon = "✓" if state == "done" else str(i)
-        items.append(
-            f'<div class="asp-step {state}"><span class="n">{icon}</span>{label}</div>'
-        )
-    st.markdown(f'<div class="asp-stepper">{"".join(items)}</div>', unsafe_allow_html=True)
+        items.append(f'<span class="asp-tag">{icon} · {label}</span>')
+    st.markdown(f'<div class="asp-tags">{"".join(items)}</div>', unsafe_allow_html=True)
 
 
 def compute_full_pipeline_steps(ss) -> list:
     """Derive stepper states from st.session_state for the Full pipeline."""
     has_img = bool(ss.get("image_paths") or ss.get("image_path"))
-    s1 = bool(ss.get("stage1"))
-    s2 = bool(ss.get("stage2"))
-    s3 = bool(ss.get("stage3"))
-    s4 = bool(ss.get("stage4") or ss.get("video_results"))
-
-    flags = [has_img, s1, s2, s3, s4]
+    flags = [has_img, bool(ss.get("stage1")), bool(ss.get("stage2")),
+             bool(ss.get("stage3")), bool(ss.get("stage4") or ss.get("video_results"))]
     labels = ["Upload product", "Research", "Plan", "Prompts", "Video ready"]
-    steps = []
-    current_set = False
+    steps, current_set = [], False
     for label, done in zip(labels, flags):
         if done:
             steps.append((label, "done"))

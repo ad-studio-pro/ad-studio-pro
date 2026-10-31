@@ -710,17 +710,13 @@ def _clear_express(full: bool) -> None:
 
 def render_express_ui(project_root: Path) -> None:
     """Render the Express UI. Populates st.session_state['stage3'] live."""
-    st.header("⚡ Express — Prompts → Video")
-    st.caption(
-        "Write your prompts directly (your own / from Claude / from ChatGPT). "
-        "Optional: upload product images. Click generate — that's it."
-    )
+    st.header("Create video")
 
     _render_video_editor(project_root)
 
     # Two clear restart buttons. Generated videos are NEVER wiped — they stay
     # in "Your generated videos" below for the whole session.
-    _r1, _r2, _r3 = st.columns([1, 1, 2])
+    _r1, _r2 = st.columns(2)
     with _r1:
         if st.button("🆕 New video", key="ex_new_btn", use_container_width=True,
                      help="Clears the prompt only. Keeps images, faces and settings."):
@@ -731,14 +727,10 @@ def render_express_ui(project_root: Path) -> None:
                      help="Clears prompts, uploaded images, faces and references. Your videos stay below."):
             _clear_express(full=True)
             st.rerun()
-    with _r3:
-        st.caption("💡 After a video is ready you can just edit the prompt and press Generate again — "
-                   "no reset needed. All videos from this session stay listed below.")
-
     ex_engine = st.radio(
         "Video engine",
-        ["🎬 Seedance 2.0 — stable (15s per take)",
-         "🚀 Seedance 2.5 — NEW: 30s in a single take, better consistency"],
+        ["🎬 Seedance 2.0",
+         "🚀 Seedance 2.5 · 30s single take"],
         index=0, horizontal=True, key="ex_engine",
         help="2.5 generates up to 30s in one take (no stitching!) and improves timing/consistency. "
              "If your ModelArk account doesn't have 2.5 access yet you'll get a clear message — switch back to 2.0.",

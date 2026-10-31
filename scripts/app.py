@@ -739,8 +739,11 @@ if not IS_EXPRESS:
     # ════════════════════════════════════════════════════════════
     # STAGE 4 — Render Videos via BytePlus
     # ════════════════════════════════════════════════════════════
-st.header("5️⃣ Stage 4: Video generation (optional)")
-st.caption("Sends the written prompts to Seedance and gets MP4s back. You can generate all of them or just some.")
+if IS_EXPRESS:
+    st.header("Generate")
+else:
+    st.header("5️⃣ Stage 4: Video generation (optional)")
+    st.caption("Sends the written prompts to Seedance and gets MP4s back. You can generate all of them or just some.")
 
 # Reference audio (music / voiceover) — shared by Express + Full pipeline.
 import ref_audio_helper as _ref_audio_mod
@@ -1168,7 +1171,17 @@ if videos_with_prompts:
                     from datetime import datetime as _dth
                     _hist = st.session_state.setdefault("video_history", [])
                     _prompts_by_id = {v["id"]: v.get("prompt", "") for v in todo}
+                    _vmeta = {v["id"]: v for v in todo}
                     for _vid, _vp in video_outputs:
+                        _v = _vmeta.get(_vid, {})
+                        try:
+                            import feed_ui as _fm
+                            _fm.save_meta(_vp, prompt=_v.get("prompt", ""), engine=_v.get("engine", ""),
+                                          duration=_v.get("duration_seconds", ""),
+                                          aspect_ratio=_v.get("aspect_ratio", ""),
+                                          resolution=_v.get("resolution", ""))
+                        except Exception:
+                            pass
                         if not any(h["path"] == str(_vp) for h in _hist):
                             _hist.insert(0, {"id": _vid, "path": str(_vp),
                                              "prompt": _prompts_by_id.get(_vid, ""),
@@ -1184,210 +1197,8 @@ if videos_with_prompts:
 
 
 # ════════════════════════════════════════════════════════════
-# 🎬 Generated Videos — view + download
+# 🎬 Results feed — right-hand panel (pinned by CSS on wide screens)
 # ════════════════════════════════════════════════════════════
-if st.session_state.get("video_history") or st.session_state.get("stage4"):
-    st.markdown("---")
-    st.header("🎬 Your generated videos")
-    st.caption("All videos from this session, newest first. Click ▶ to watch, or ⬇️ to download.")
-
-    # Prefer the full session history; fall back to the last run only.
-    _outputs = st.session_state.get("video_history") or st.session_state["stage4"]
-    # Each entry can be (id, path) tuple or dict — normalize
-    _normalized = []
-    for item in _outputs:
-        if isinstance(item, tuple):
-            _normalized.append({"id": item[0], "path": str(item[1])})
-        elif isinstance(item, dict):
-            _normalized.append(item)
-    # Unique display number per video (ids repeat in Express: always "1")
-    for _it in _normalized:
-        _it["label"] = (f"{_it.get('time', '')} · " if _it.get("time") else "") + Path(_it["path"]).stem
-    _hist_n = len(_normalized)
-
-    _existing_vids = [Path(_it.get("path", "")) for _it in _normalized
-                      if _it.get("path") and Path(_it.get("path", "")).exists()]
-    if _existing_vids:
-        import io as _io
-        import zipfile as _zipf
-        _buf = _io.BytesIO()
-        with _zipf.ZipFile(_buf, "w", _zipf.ZIP_STORED) as _zf:
-            for _p2 in _existing_vids:
-                _zf.write(_p2, _p2.name)
-            _plan3 = st.session_state.get("stage3") or {}
-            _txt = "\n\n".join(
-                f"=== Video {v.get('id')} ({v.get('duration_seconds')}s) ===\n{v.get('prompt', '')}"
-                for v in _plan3.get("videos", []) if v.get("prompt"))
-            if _txt:
-                _zf.writestr("prompts.txt", _txt)
-        st.download_button(
-            f"📦 Download CapCut editing package ({len(_existing_vids)} videos + prompts)",
-            _buf.getvalue(), file_name="capcut_package.zip", mime="application/zip",
-            use_container_width=True, key="capcut_zip_btn",
-        )
-        st.caption(
-            "Extract the ZIP → in CapCut: New project → Import → select all the files. "
-            "Each video goes into the timeline as a separate clip, and prompts.txt helps with captions."
-        )
-
-    if not _normalized:
-        st.info("No videos available to display.")
-    else:
-        _cols_per_row = 2
-        for i in range(0, len(_normalized), _cols_per_row):
-            _row = _normalized[i:i + _cols_per_row]
-            _cols = st.columns(len(_row))
-            for _col, _item in zip(_cols, _row):
-                with _col:
-                    _vid_id = _item.get("id", "?")
-                    _path = Path(_item.get("path", ""))
-                    if _path.exists():
-                        st.markdown(f"**🎬 {_item.get('label', _path.name)}**")
-                        with open(_path, "rb") as _f:
-                            _bytes = _f.read()
-                        st.video(_bytes)
-                        st.download_button(
-                            label=f"⬇️ Download video #{_vid_id}",
-                            data=_bytes,
-                            file_name=_path.name,
-                            mime="video/mp4",
-                            key=f"dl_video_{_vid_id}_{_path.name}",
-                            use_container_width=True,
-                        )
-                        _size_mb = len(_bytes) / 1024 / 1024
-                        st.caption(f"{_size_mb:.1f} MB")
-                        if _item.get("prompt"):
-                            if st.button("✏️ Use this prompt again", key=f"reuse_{_path.name}",
-                                         use_container_width=True,
-                                         help="Puts this video's prompt back into Video #1 so you can tweak it and generate again."):
-                                _pr = _item["prompt"]
-                                # strip the auto-added audio rule — it's re-added on save
-                                _pr = _pr.split("\n\nSoundtrack rule:")[0].split("\n\nAudio: no background music")[0]
-                                # Applied before the text box is drawn on the next run
-                                st.session_state["_pending_prompt_0"] = _pr
-                                st.rerun()
-                    else:
-                        st.warning(f"Video #{_vid_id} not found on disk.")
-
-
-# ════════════════════════════════════════════════════════════
-# 📂 All videos on the server — file browser + ZIP bulk download
-# ════════════════════════════════════════════════════════════
-# Even after a session reset, the user can grab any MP4 still sitting on the
-# Streamlit Cloud VM's disk. Lists all *.mp4 in outputs/videos/, newest first.
-st.markdown("---")
-with st.expander("📂 All videos stored on the server — direct file access", expanded=False):
-    st.caption(
-        "⚠ Files are stored on Streamlit Cloud temporarily only. "
-        "When the VM restarts (rebuild, long inactivity) they are deleted. "
-        "**Download them to your computer for long-term storage.**"
-    )
-
-    _videos_dir = OUTPUTS_DIR / "videos"
-    if not _videos_dir.exists():
-        st.info("No videos created yet. After you generate in Stage 4, they will appear here.")
-    else:
-        _all_mp4s = sorted(
-            _videos_dir.glob("*.mp4"),
-            key=lambda p: p.stat().st_mtime,
-            reverse=True,
-        )
-        if not _all_mp4s:
-            st.info("The folder is empty — no videos created yet.")
-        else:
-            from datetime import datetime as _dt
-            _total_size = sum(p.stat().st_size for p in _all_mp4s)
-            st.success(
-                f"✓ {len(_all_mp4s)} files on the server · "
-                f"total {_total_size / 1024 / 1024:.1f} MB"
-            )
-            st.info(
-                "💡 **Note:** Streamlit's direct download sometimes stalls on large files. "
-                "Instead, click '📤 Create permanent link' next to each video — it is uploaded to catbox "
-                "(a public, stable link with its own CDN), and you get a link you can open in a new tab "
-                "and download directly from the browser with no issues."
-            )
-
-            # Cache uploaded URLs per file in session_state
-            _url_cache = st.session_state.setdefault("_video_share_urls", {})
-
-            # ── Bulk upload all → returns a list of shareable links ──
-            if st.button(
-                f"\U0001F4E4 Create download links for all {len(_all_mp4s)} videos",
-                type="primary",
-                use_container_width=True,
-                key="upload_all_btn",
-                help="Uploads each video to catbox (a permanent link). Takes a few seconds per video.",
-            ):
-                _prog = st.progress(0.0, text="Uploading...")
-                for _i, _p in enumerate(_all_mp4s):
-                    if str(_p) not in _url_cache:
-                        try:
-                            _url_cache[str(_p)] = upload_video(_p)
-                        except Exception as _e:
-                            st.warning(f"\u274C {_p.name}: {_e}")
-                    _prog.progress((_i + 1) / len(_all_mp4s), text=f"Uploading {_i+1}/{len(_all_mp4s)}: {_p.name}")
-                _prog.empty()
-                st.success(f"\u2713 Uploaded {len(_url_cache)} videos. The links appear below.")
-                st.rerun()
-
-            st.markdown("---")
-            st.markdown(f"**\U0001F4CB File list** (newest \u2192 oldest):")
-
-            # Per-file row: name, mtime, size, action button
-            for _p in _all_mp4s:
-                _mtime = _dt.fromtimestamp(_p.stat().st_mtime)
-                _size_mb = _p.stat().st_size / 1024 / 1024
-                _cols = st.columns([3, 2, 1, 2, 1])
-                # 🗑 delete with two-step confirm (paid generations — no accidents)
-                with _cols[4]:
-                    _del_key = f"delask_{_p.name}"
-                    if st.session_state.get(_del_key):
-                        if st.button("✔ Delete", key=f"delok_{_p.name}",
-                                      type="primary", use_container_width=True,
-                                      help="Permanently delete from the server"):
-                            try:
-                                _p.unlink()
-                                _url_cache.pop(str(_p), None)
-                                st.session_state.pop(_del_key, None)
-                                st.rerun()
-                            except Exception as _de:
-                                st.error(f"Delete failed: {_de}")
-                        if st.button("✖ Cancel", key=f"delno_{_p.name}",
-                                      use_container_width=True):
-                            st.session_state.pop(_del_key, None)
-                            st.rerun()
-                    else:
-                        if st.button("🗑", key=f"delbtn_{_p.name}",
-                                      use_container_width=True,
-                                      help="Remove the video from the server"):
-                            st.session_state[_del_key] = True
-                            st.rerun()
-                with _cols[0]:
-                    st.text(_p.name)
-                with _cols[1]:
-                    st.caption(_mtime.strftime("%Y-%m-%d %H:%M:%S"))
-                with _cols[2]:
-                    st.caption(f"{_size_mb:.1f} MB")
-                with _cols[3]:
-                    _key = str(_p)
-                    if _key in _url_cache:
-                        st.link_button(
-                            "\u2B07\ufe0f Download from catbox",
-                            _url_cache[_key],
-                            use_container_width=True,
-                            help="Right-click \u2192 'Save link as...' or open in a new tab",
-                        )
-                    else:
-                        if st.button(
-                            "\U0001F4E4 Create permanent link",
-                            key=f"upload_one_{_p.name}",
-                            use_container_width=True,
-                            help="Uploads to catbox and creates a direct download link",
-                        ):
-                            with st.spinner(f"Uploading {_p.name}..."):
-                                try:
-                                    _url_cache[_key] = upload_video(_p)
-                                    st.rerun()
-                                except Exception as _e:
-                                    st.error(f"Upload error: {_e}")
+import feed_ui as _feed_mod
+_safe_reload(_feed_mod)
+_feed_mod.render_feed(OUTPUTS_DIR, upload_video)
