@@ -19,7 +19,7 @@ from pathlib import Path
 
 import streamlit as st
 
-PAGE = 6
+PAGE = 10
 
 
 def save_meta(video_path, **meta) -> None:
@@ -104,15 +104,15 @@ def render_feed(outputs_dir: Path, upload_video=None) -> None:
                     else:
                         st.caption(p.name)
 
-                    b1, b2, b3 = st.columns([1, 1, 0.55])
+                    b1, b2, b3 = st.columns(3)
                     with b1:
                         # read bytes only for the visible cards
-                        st.download_button("⬇ Download", p.read_bytes(), file_name=p.name,
+                        st.download_button("⬇", p.read_bytes(), file_name=p.name,
                                            mime="video/mp4", key=f"fd_{k}", use_container_width=True)
                     with b2:
                         if str(p) in url_cache:
-                            st.link_button("🔗 Open link", url_cache[str(p)], use_container_width=True)
-                        elif upload_video and st.button("🔗 Link", key=f"fl_{k}", use_container_width=True,
+                            st.link_button("🔗 Open", url_cache[str(p)], use_container_width=True)
+                        elif upload_video and st.button("🔗", key=f"fl_{k}", use_container_width=True,
                                                          help="Uploads to a public host and gives a direct link"):
                             with st.spinner("Uploading…"):
                                 try:
