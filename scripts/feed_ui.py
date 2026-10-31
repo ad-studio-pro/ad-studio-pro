@@ -80,10 +80,8 @@ def render_feed(outputs_dir: Path, upload_video=None) -> None:
             meta = _load_meta(p)
             k = _safe_key(p.stem)
             with st.container(key=f"asp_card_{k}"):
-                c_vid, c_info = st.columns([1.25, 1], gap="medium")
-                with c_vid:
-                    st.video(str(p))
-                with c_info:
+                st.video(str(p))
+                if True:
                     when = meta.get("created") or datetime.fromtimestamp(p.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
                     tags = []
                     if meta.get("engine"):

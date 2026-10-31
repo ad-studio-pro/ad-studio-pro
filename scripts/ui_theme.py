@@ -22,7 +22,7 @@ _CSS = """
 :root{
   --bg:#0A0A0B; --panel:#131315; --panel2:#1A1A1D; --line:#26262B;
   --text:#F2F2F3; --muted:#8C8C95; --accent:#C8F560; --accent-ink:#0A0A0B;
-  --left-w: 540px;
+  --left-w: clamp(480px, 30vw, 620px);
 }
 html, body, [data-testid="stAppViewContainer"] * {
   font-family: 'Inter', 'Segoe UI', sans-serif;
@@ -43,9 +43,18 @@ span[data-testid="stIconMaterial"], [data-testid="stIconMaterial"],
 @media (min-width: 1100px){
   [data-testid="stMainBlockContainer"]:has(.st-key-asp_feed),
   .block-container:has(.st-key-asp_feed){
-    max-width: var(--left-w) !important; margin-left: 16px !important; margin-right: 0 !important;
+    max-width: var(--left-w) !important; width: var(--left-w) !important;
+    align-self: flex-start !important;            /* stMain centers its child — pin it left */
+    margin-left: 16px !important; margin-right: 0 !important;
     padding-left: 0 !important; padding-right: 0 !important;
   }
+  /* feed = responsive grid of compact cards; header rows span the full width */
+  .st-key-asp_feed{
+    display: grid !important; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 14px !important; align-content: start; align-items: start;
+  }
+  .st-key-asp_feed > *{ grid-column: 1 / -1; }
+  .st-key-asp_feed > *:has(> [class*="st-key-asp_card_"]){ grid-column: auto; }
   .st-key-asp_feed{
     position: fixed !important; top: 3rem; bottom: 14px;
     left: calc(var(--left-w) + 34px); right: 16px; width: auto !important;
@@ -130,8 +139,9 @@ textarea { font-size: .92rem !important; line-height: 1.5 !important; }
 [data-testid="stAlert"]{ border-radius: 12px; border: 1px solid var(--line); }
 [data-testid="stStatusWidget"], [data-testid="stExpander"] [data-testid="stStatus"]{ border-radius: 12px; }
 [data-testid="stVideo"] video, video{
-  width: 100% !important; max-height: 70vh !important; border-radius: 14px; background: #000; display:block;
+  width: 100% !important; max-height: 60vh !important; border-radius: 14px; background: #000; display:block;
 }
+[class*="st-key-asp_card_"] video{ max-height: 340px !important; aspect-ratio: 9/16; object-fit: contain; }
 [data-testid="stSidebar"]{ background: var(--panel); border-right: 1px solid var(--line); }
 
 /* ── top bar ────────────────────────────────────────────── */
@@ -152,8 +162,8 @@ textarea { font-size: .92rem !important; line-height: 1.5 !important; }
 .asp-feed-head .t{ font-size:1.05rem; font-weight:800; }
 .asp-feed-head .c{ font-size:.78rem; color: var(--muted); }
 [class*="st-key-asp_card_"]{
-  background: var(--bg); border: 1px solid var(--line); border-radius: 16px; padding: 12px;
-  margin-bottom: 12px;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 16px; padding: 10px;
+  gap: 8px !important;
 }
 [class*="st-key-asp_card_"]:hover{ border-color: #34343b; }
 .asp-tags{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom: 8px; }
@@ -162,7 +172,7 @@ textarea { font-size: .92rem !important; line-height: 1.5 !important; }
 .asp-tag.engine{ color: var(--accent); border-color: rgba(200,245,96,.35); }
 .asp-prompt{
   font-size:.82rem; line-height:1.5; color:#bdbdc4; white-space: pre-wrap;
-  max-height: 11.5em; overflow-y: auto; padding-right: 4px; margin-bottom: 10px;
+  max-height: 6em; overflow-y: auto; padding-right: 4px; margin-bottom: 10px;
 }
 .asp-empty{
   border: 1px dashed #2e2e34; border-radius: 16px; padding: 48px 20px; text-align:center; color: var(--muted);
