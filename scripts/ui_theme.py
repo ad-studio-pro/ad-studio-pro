@@ -193,94 +193,22 @@ def inject_theme() -> None:
 
 _LIGHT_CSS = """
 <style>
-:root{
-  --bg:#F5F5F7; --panel:#FFFFFF; --panel2:#F0F0F3; --line:#E1E1E7;
-  --text:#141417; --muted:#6A6A74; --accent:#C8F560; --accent-ink:#0A0A0B;
+/* LIGHT MODE = the whole dark UI inverted in one go. This flips EVERY element
+   (buttons, dropdown menus, checkboxes, tooltips, toolbar…) consistently, so no
+   dark leftovers. Photos, videos and the bright Generate button are flipped back
+   so they keep their real colors. */
+html{ filter: invert(1) hue-rotate(180deg); background:#0A0A0B; }
+img, video, picture, canvas, iframe,
+[data-testid="stImage"], [data-testid="stVideo"],
+.asp-logo,
+.stButton > button[kind="primary"], .stDownloadButton > button[kind="primary"],
+button[data-testid="stBaseButton-primary"], a[data-testid="stBaseLinkButton-primary"]{
+  filter: invert(1) hue-rotate(180deg);
 }
-.stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"], [data-testid="stMain"]{
-  background: var(--bg) !important; color: var(--text) !important;
-}
-.stApp p, .stApp li, .stApp h1, .stApp h3, .stApp span, .stApp label,
-[data-testid="stMarkdownContainer"], [data-testid="stExpander"] summary,
-[data-testid="stFileUploaderDropzone"] *, .stApp input, .stApp textarea,
-[data-baseweb="select"] div{ color: var(--text) !important; }
-[data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] *,
-[data-testid="stWidgetLabel"] p{ color: var(--muted) !important; }
-.stApp input::placeholder, .stApp textarea::placeholder{ color:#9a9aa3 !important; }
-[data-baseweb="popover"] ul, [data-baseweb="popover"] li, [data-baseweb="menu"]{
-  background: #fff !important; color: var(--text) !important;
-}
-[data-baseweb="popover"] li:hover{ background: var(--panel2) !important; }
-.stButton > button:hover, .stDownloadButton > button:hover, .stLinkButton > a:hover{
-  background:#E8E8EC !important; color: var(--text) !important; border-color:#cfcfd6 !important;
-}
-.stButton > button[kind="primary"]:disabled{ background:#E4E4E8 !important; color:#9a9aa3 !important; }
-.asp-tag{ color:#3a3a42 !important; }
-.asp-tag.engine{ color:#3F6212 !important; border-color:#bfe38a !important; background:#F4FBE6 !important; }
-.asp-prompt{ color:#4a4a52 !important; }
-[class*="st-key-asp_card_"]{ background:#FFFFFF !important; }
-.st-key-asp_feed{ background: var(--panel2) !important; }
-.st-key-asp_feed::-webkit-scrollbar-thumb{ background:#cfcfd6 !important; }
-[data-testid="stAlert"]{ background:#fff !important; }
-[data-testid="stSidebar"]{ background:#fff !important; }
-[data-testid="stRadio"] [role="radiogroup"] > label:has(input:checked){ background:#F4FBE6 !important; }
-
-/* ── LIGHT: every Streamlit control gets a light surface (no black boxes) ── */
-/* buttons (all non-primary) */
-.stApp button:not([kind="primary"]):not([data-testid="stBaseButton-primary"]):not([data-testid="stExpanderToggleIcon"]),
-.stApp a[data-testid^="stBaseLinkButton"]{
-  background-color:#FFFFFF !important; color: var(--text) !important;
-  border:1px solid #D6D6DD !important;
-}
-.stApp button:not([kind="primary"]):not([data-testid="stBaseButton-primary"]) *,
-.stApp a[data-testid^="stBaseLinkButton"] *{ color: var(--text) !important; fill: var(--text) !important; }
-.stApp button:not([kind="primary"]):not([data-testid="stBaseButton-primary"]):hover{
-  background-color:#EDEDF1 !important; border-color:#BDBDC6 !important;
-}
-/* video player buttons stay untouched */
-.stApp video ~ *, [data-testid="stVideo"] button{ background-color: transparent !important; border: 0 !important; }
-/* text inputs, number inputs, text areas, selects */
-[data-testid="stSelectbox"] div, [data-testid="stMultiSelect"] div,
-[data-testid="stNumberInput"] div, [data-testid="stNumberInput"] input, [data-testid="stNumberInput"] button,
-[data-testid="stTextArea"] div, [data-testid="stTextArea"] textarea,
-[data-testid="stTextInput"] div, [data-testid="stTextInput"] input,
-[data-testid="stDateInput"] div, [data-testid="stDateInput"] input{
-  background-color:#FFFFFF !important; color: var(--text) !important;
-}
-[data-baseweb="select"] > div, [data-baseweb="input"], [data-baseweb="textarea"], [data-baseweb="base-input"],
-[data-testid="stNumberInputContainer"]{
-  border:1px solid #D6D6DD !important; border-radius:12px !important;
-}
-[data-testid="stSelectbox"] svg, [data-testid="stNumberInput"] svg{ fill:#55555e !important; color:#55555e !important; }
-[data-testid="stWidgetLabel"] *, [data-testid="stTooltipIcon"] *{ color: var(--muted) !important; }
-/* file uploader */
-[data-testid="stFileUploaderDropzone"]{ background:#FFFFFF !important; border:1px dashed #C9C9D1 !important; }
-[data-testid="stFileUploaderDropzoneInstructions"] *{ color: var(--muted) !important; }
-[data-testid="stFileUploaderFile"], [data-testid="stFileUploaderFile"] *{ background:transparent !important; color: var(--text) !important; }
-/* radio circles: unchecked = white ring */
-[data-testid="stRadio"] label:not(:has(input:checked)) > div:first-child{
-  background-color:#FFFFFF !important; border:1.5px solid #BEBEC7 !important;
-}
-[data-testid="stRadio"] label:not(:has(input:checked)) > div:first-child > div{ background-color: transparent !important; }
-/* checkboxes: unchecked = white box */
-[data-testid="stCheckbox"] label:not(:has(input:checked)) > span:first-child{
-  background-color:#FFFFFF !important; border:1.5px solid #BEBEC7 !important;
-}
-/* toggles: unchecked track */
-[data-testid="stToggle"] label:not(:has(input:checked)) > div:first-child{ background-color:#D4D4DB !important; }
-/* expanders, status boxes, alerts, code */
-[data-testid="stExpander"] details, [data-testid="stExpander"] summary{ background:#FFFFFF !important; }
-[data-testid="stExpander"] details{ border:1px solid var(--line) !important; }
-[data-testid="stExpanderDetails"]{ background:#FFFFFF !important; }
-[data-testid="stCode"], [data-testid="stCode"] pre, .stApp pre, .stApp code{
-  background:#F3F3F6 !important; color:#1d1d22 !important;
-}
-[data-testid="stCode"] span{ color:#1d1d22 !important; }
-[data-testid="stAlert"] *{ color: var(--text) !important; }
-[data-testid="stHeader"] *, [data-testid="stToolbar"] *{ color:#33333a !important; }
-[data-testid="stProgress"] > div > div{ background:#E4E4E9 !important; }
-/* sliders */
-[data-testid="stSlider"] [role="slider"]{ background: var(--accent) !important; }
+/* avoid double-flipping media that sits inside an already re-flipped wrapper */
+[data-testid="stImage"] img, [data-testid="stVideo"] video{ filter: none; }
+/* softer shadows in light mode */
+.stButton > button[kind="primary"]{ box-shadow: 0 4px 14px rgba(0,0,0,.08) !important; }
 </style>
 """
 
