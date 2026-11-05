@@ -22,7 +22,7 @@ _CSS = """
 :root{
   --bg:#0A0A0B; --panel:#131315; --panel2:#1A1A1D; --line:#26262B;
   --text:#F2F2F3; --muted:#8C8C95; --accent:#C8F560; --accent-ink:#0A0A0B;
-  --left-w: clamp(480px, 30vw, 620px);
+  --left-w: clamp(560px, 62vw, 1180px);   /* create panel gets most of the screen */
 }
 html, body, [data-testid="stAppViewContainer"] * {
   font-family: 'Inter', 'Segoe UI', sans-serif;
@@ -50,7 +50,7 @@ span[data-testid="stIconMaterial"], [data-testid="stIconMaterial"],
   }
   /* feed = responsive grid of compact cards; header rows span the full width */
   .st-key-asp_feed{
-    display: grid !important; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    display: grid !important; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
     gap: 14px !important; align-content: start; align-items: start;
   }
   .st-key-asp_feed > *{ grid-column: 1 / -1; }
@@ -60,7 +60,7 @@ span[data-testid="stIconMaterial"], [data-testid="stIconMaterial"],
     left: calc(var(--left-w) + 34px); right: 16px; width: auto !important;
     overflow-y: auto; overflow-x: hidden;
     background: var(--panel); border: 1px solid var(--line); border-radius: 18px;
-    padding: 16px 18px; z-index: 5;
+    padding: 12px 12px; z-index: 5;
   }
   .st-key-asp_feed::-webkit-scrollbar{ width: 8px; }
   .st-key-asp_feed::-webkit-scrollbar-thumb{ background:#2a2a30; border-radius: 8px; }
@@ -141,7 +141,7 @@ textarea { font-size: .92rem !important; line-height: 1.5 !important; }
 [data-testid="stVideo"] video, video{
   width: 100% !important; max-height: 60vh !important; border-radius: 14px; background: #000; display:block;
 }
-[class*="st-key-asp_card_"] video{ max-height: 340px !important; aspect-ratio: 9/16; object-fit: contain; }
+[class*="st-key-asp_card_"] video{ max-height: 250px !important; aspect-ratio: 9/16; object-fit: contain; }
 [data-testid="stSidebar"]{ background: var(--panel); border-right: 1px solid var(--line); }
 
 /* ── top bar ────────────────────────────────────────────── */
@@ -172,12 +172,16 @@ textarea { font-size: .92rem !important; line-height: 1.5 !important; }
 .asp-tag.engine{ color: var(--accent); border-color: rgba(200,245,96,.35); }
 .asp-prompt{
   font-size:.82rem; line-height:1.5; color:#bdbdc4; white-space: pre-wrap;
-  max-height: 6em; overflow-y: auto; padding-right: 4px; margin-bottom: 10px;
+  max-height: 4.5em; overflow-y: auto; font-size: .74rem !important; padding-right: 4px; margin-bottom: 10px;
 }
 .asp-empty{
   border: 1px dashed #2e2e34; border-radius: 16px; padding: 48px 20px; text-align:center; color: var(--muted);
 }
 .asp-empty b{ display:block; color: var(--text); font-size: 1rem; margin-bottom: 6px; }
+.st-key-asp_feed .asp-tag{ font-size:.62rem; padding:1px 6px; }
+[class*="st-key-asp_card_"] .stButton > button, [class*="st-key-asp_card_"] .stDownloadButton > button,
+[class*="st-key-asp_card_"] .stLinkButton > a{ min-height: 1.9rem; font-size: .74rem; padding: 0 6px; }
+[class*="st-key-asp_card_"]{ padding: 7px !important; gap: 6px !important; }
 </style>
 """
 

@@ -151,6 +151,13 @@ def generate_scene_image(
             last_err = response.text[:200]
             log(f"  ⚠ {model_name} not found — trying next model")
             continue
+        if response.status_code == 402 or "RESOURCE_EXHAUSTED" in response.text[:400]:
+            raise RuntimeError(
+                "The Google Gemini (Nano Banana) image credits ran out. This is an OPTIONAL helper "
+                "(reference sheets / auto-split) — video generation on Seedance is not affected. "
+                "To use it again, top up credits at https://aistudio.google.com/ (Billing), "
+                "or skip this step and upload your images as they are."
+            )
         if response.status_code >= 400:
             raise RuntimeError(
                 f"Nano Banana failed [{response.status_code}]: {response.text[:400]}"
