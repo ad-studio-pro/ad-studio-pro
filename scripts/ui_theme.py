@@ -224,6 +224,63 @@ _LIGHT_CSS = """
 [data-testid="stAlert"]{ background:#fff !important; }
 [data-testid="stSidebar"]{ background:#fff !important; }
 [data-testid="stRadio"] [role="radiogroup"] > label:has(input:checked){ background:#F4FBE6 !important; }
+
+/* ── LIGHT: every Streamlit control gets a light surface (no black boxes) ── */
+/* buttons (all non-primary) */
+.stApp button:not([kind="primary"]):not([data-testid="stBaseButton-primary"]):not([data-testid="stExpanderToggleIcon"]),
+.stApp a[data-testid^="stBaseLinkButton"]{
+  background-color:#FFFFFF !important; color: var(--text) !important;
+  border:1px solid #D6D6DD !important;
+}
+.stApp button:not([kind="primary"]):not([data-testid="stBaseButton-primary"]) *,
+.stApp a[data-testid^="stBaseLinkButton"] *{ color: var(--text) !important; fill: var(--text) !important; }
+.stApp button:not([kind="primary"]):not([data-testid="stBaseButton-primary"]):hover{
+  background-color:#EDEDF1 !important; border-color:#BDBDC6 !important;
+}
+/* video player buttons stay untouched */
+.stApp video ~ *, [data-testid="stVideo"] button{ background-color: transparent !important; border: 0 !important; }
+/* text inputs, number inputs, text areas, selects */
+[data-testid="stSelectbox"] div, [data-testid="stMultiSelect"] div,
+[data-testid="stNumberInput"] div, [data-testid="stNumberInput"] input, [data-testid="stNumberInput"] button,
+[data-testid="stTextArea"] div, [data-testid="stTextArea"] textarea,
+[data-testid="stTextInput"] div, [data-testid="stTextInput"] input,
+[data-testid="stDateInput"] div, [data-testid="stDateInput"] input{
+  background-color:#FFFFFF !important; color: var(--text) !important;
+}
+[data-baseweb="select"] > div, [data-baseweb="input"], [data-baseweb="textarea"], [data-baseweb="base-input"],
+[data-testid="stNumberInputContainer"]{
+  border:1px solid #D6D6DD !important; border-radius:12px !important;
+}
+[data-testid="stSelectbox"] svg, [data-testid="stNumberInput"] svg{ fill:#55555e !important; color:#55555e !important; }
+[data-testid="stWidgetLabel"] *, [data-testid="stTooltipIcon"] *{ color: var(--muted) !important; }
+/* file uploader */
+[data-testid="stFileUploaderDropzone"]{ background:#FFFFFF !important; border:1px dashed #C9C9D1 !important; }
+[data-testid="stFileUploaderDropzoneInstructions"] *{ color: var(--muted) !important; }
+[data-testid="stFileUploaderFile"], [data-testid="stFileUploaderFile"] *{ background:transparent !important; color: var(--text) !important; }
+/* radio circles: unchecked = white ring */
+[data-testid="stRadio"] label:not(:has(input:checked)) > div:first-child{
+  background-color:#FFFFFF !important; border:1.5px solid #BEBEC7 !important;
+}
+[data-testid="stRadio"] label:not(:has(input:checked)) > div:first-child > div{ background-color: transparent !important; }
+/* checkboxes: unchecked = white box */
+[data-testid="stCheckbox"] label:not(:has(input:checked)) > span:first-child{
+  background-color:#FFFFFF !important; border:1.5px solid #BEBEC7 !important;
+}
+/* toggles: unchecked track */
+[data-testid="stToggle"] label:not(:has(input:checked)) > div:first-child{ background-color:#D4D4DB !important; }
+/* expanders, status boxes, alerts, code */
+[data-testid="stExpander"] details, [data-testid="stExpander"] summary{ background:#FFFFFF !important; }
+[data-testid="stExpander"] details{ border:1px solid var(--line) !important; }
+[data-testid="stExpanderDetails"]{ background:#FFFFFF !important; }
+[data-testid="stCode"], [data-testid="stCode"] pre, .stApp pre, .stApp code{
+  background:#F3F3F6 !important; color:#1d1d22 !important;
+}
+[data-testid="stCode"] span{ color:#1d1d22 !important; }
+[data-testid="stAlert"] *{ color: var(--text) !important; }
+[data-testid="stHeader"] *, [data-testid="stToolbar"] *{ color:#33333a !important; }
+[data-testid="stProgress"] > div > div{ background:#E4E4E9 !important; }
+/* sliders */
+[data-testid="stSlider"] [role="slider"]{ background: var(--accent) !important; }
 </style>
 """
 
