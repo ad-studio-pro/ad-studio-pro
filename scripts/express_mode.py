@@ -708,6 +708,15 @@ def _clear_express(full: bool) -> None:
         ss["_ex_gen"] = int(ss.get("_ex_gen", 0)) + 1
 
 
+def _gemini_on() -> bool:
+    """Gemini (Google) features are hidden unless ALLOW_GEMINI=1 in Secrets."""
+    try:
+        from nano_banana import gemini_allowed
+        return gemini_allowed()
+    except Exception:
+        return False
+
+
 def render_express_ui(project_root: Path) -> None:
     """Render the Express UI. Populates st.session_state['stage3'] live."""
     st.header("Create video")
@@ -858,7 +867,7 @@ def render_express_ui(project_root: Path) -> None:
             st.session_state["_sheets_active"] = False
 
         # ── Auto variant splitter: one group photo → separate variants ──
-        if len(ex_image_paths) == 1 and not st.session_state.get("_sheets_active"):
+        if len(ex_image_paths) == 1 and not st.session_state.get("_sheets_active") and _gemini_on():
             with st.expander("✂️ Does the image show several colors together? Auto-split into separate images", expanded=True):
                 st.caption(
                     "If the image shows several variants of the product together (e.g. a pile of rings in 7 colors) — "
@@ -916,7 +925,7 @@ def render_express_ui(project_root: Path) -> None:
             if _roles_empty and st.session_state.get("_autoname_sig") != _paths_sig:
                 st.session_state["_autoname_sig"] = _paths_sig
                 try:
-                    from nano_banana import is_available as _nb_ok2
+                    from nano_banana import gemini_allowed as _nb_ok2
                     if _nb_ok2():
                         import importlib as _il2
                         import variant_splitter as _vs2
@@ -956,7 +965,7 @@ def render_express_ui(project_root: Path) -> None:
             with st.expander("🖼 Create a multi-angle Reference Sheet for the image (recommended!)",
                               expanded=not st.session_state.get("_sheets_active")):
                 st.caption(
-                    "Nano Banana turns your image into one image with 6 panels — front, both profiles, "
+                    "Seedream turns your image into one image with 6 panels — front, both profiles, "
                     "top-down, macro (thickness visible), and worn on the hand — and swaps it in automatically. "
                     "This way Seedance understands the true shape from every angle and the product doesn't come out warped."
                 )
@@ -1081,7 +1090,7 @@ def render_express_ui(project_root: Path) -> None:
             # ── Multi-angle reference sheets: one image per variant, all sides ──
             with st.expander("🖼 Multi-angle image generator (a Reference Sheet per color)", expanded=False):
                 st.caption(
-                    "For each variant we build a prompt for **Seedream 5.0 / Nano Banana**: one image with 6 panels — "
+                    "For each variant we build a prompt for **Seedream 5.0**: one image with 6 panels — "
                     "front, both profiles, top-down, macro, and worn on the hand. Paste the prompt into the image generator "
                     "**with the original image attached**, then upload the result back here in place of the original image — "
                     "this way Seedance gets every angle of each ring in a single image and can animate it from any direction."
@@ -1091,7 +1100,7 @@ def render_express_ui(project_root: Path) -> None:
 
                 # One-click: Nano Banana builds ALL the sheets and swaps them in
                 if not st.session_state.get("_sheets_active"):
-                    if st.button("🚀 Auto-create all the reference sheets and use them (Nano Banana)",
+                    if st.button("🚀 Auto-create all the reference sheets and use them (Seedream)",
                                   type="primary", use_container_width=True, key="ex_sheets_btn"):
                         from nano_banana import generate_scene_image as _gen_img
                         _src_sig = "|".join(ex_image_paths)

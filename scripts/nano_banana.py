@@ -105,6 +105,10 @@ def generate_scene_image(
     Returns:
         Path to the saved PNG.
     """
+    # Google Gemini is OFF unless ALLOW_GEMINI=1 is set in Secrets.
+    # All app image creation goes through Seedream 5.0 (BytePlus — already paid).
+    if not gemini_allowed():
+        return _generate_with_seedream(prompt, reference_image_paths, output_path, log=log)
     gemini_key = _get("GEMINI_API_KEY", "")
     if not gemini_key:
         raise RuntimeError(
@@ -199,8 +203,33 @@ def generate_scene_image(
     return output_path
 
 
+def gemini_allowed() -> bool:
+    """Gemini (Google) is disabled by default — the owner doesn't want it used."""
+    return _get("ALLOW_GEMINI", "").strip() == "1" and bool(_get("GEMINI_API_KEY"))
+
+
 def is_available() -> bool:
-    return bool(_get("GEMINI_API_KEY"))
+    """Image creation available? (Seedream via the ARK key, or Gemini if allowed)."""
+    return bool(_get("ARK_API_KEY") or _get("BYTEPLUS_API_KEY")) or gemini_allowed()
+
+
+def _generate_with_seedream(prompt, reference_image_paths=None, output_path=None, log=print):
+    """Same contract as generate_scene_image, but on Seedream 5.0 lite (BytePlus)."""
+    from byteplus_client import seedream_from_images
+    from upload_image import upload_image
+    refs = []
+    for ref in (reference_image_paths or []):
+        if Path(ref).exists():
+            refs.append(upload_image(Path(ref), log=log))   # normalized data: URL
+    log(f"  🎨 Generating image via Seedream 5.0 lite ({len(refs)} reference image(s))...")
+    url = seedream_from_images(prompt, refs)
+    out = Path(output_path) if output_path else Path("outputs/scenes") / f"scene_{abs(hash(prompt)) % 10**8}.png"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    r = requests.get(url, timeout=120)
+    r.raise_for_status()
+    out.write_bytes(r.content)
+    log(f"  ✓ saved {out.name}")
+    return out
 
 
 if __name__ == "__main__":

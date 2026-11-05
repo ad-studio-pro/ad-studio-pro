@@ -29,6 +29,9 @@ _MIMES = {".jpg": "image/jpeg", ".jpeg": "image/jpeg",
 def detect_variants(image_path, log=print) -> list:
     """Ask Gemini vision to list the distinct product variants in the photo.
     Returns a list of short English names (max 9)."""
+    from nano_banana import gemini_allowed
+    if not gemini_allowed():
+        raise RuntimeError("Gemini is disabled for this app (ALLOW_GEMINI is off).")
     key = _get("GEMINI_API_KEY", "")
     if not key:
         raise RuntimeError("GEMINI_API_KEY missing")
@@ -103,6 +106,9 @@ def extract_variants(image_path, names, out_dir, log=print, progress=None) -> li
 
 def name_images(image_paths, log=print) -> list:
     """One Gemini vision call: short English name per attached image, in order."""
+    from nano_banana import gemini_allowed
+    if not gemini_allowed():
+        raise RuntimeError("Gemini is disabled for this app (ALLOW_GEMINI is off).")
     key = _get("GEMINI_API_KEY", "")
     if not key:
         raise RuntimeError("GEMINI_API_KEY missing")

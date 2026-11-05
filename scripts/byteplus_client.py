@@ -356,6 +356,30 @@ def seedream_generate(prompt, size="2K", model=None, timeout=180):
     return url
 
 
+def seedream_from_images(prompt, image_refs, size="2K", model=None, timeout=240):
+    """Image-to-image with Seedream 5.0 lite: prompt + 1..N reference images
+    (URLs or data: URLs). Returns the result image URL."""
+    refs = [r for r in (image_refs or []) if r][:10]
+    payload = {
+        "model": model or _seedream_model_id(),
+        "prompt": prompt,
+        "size": size,
+        "response_format": "url",
+        "watermark": False,
+    }
+    if refs:
+        payload["image"] = refs[0] if len(refs) == 1 else refs
+    r = requests.post(f"{_base_url()}/images/generations", json=payload,
+                      headers=_headers(), timeout=timeout)
+    if r.status_code >= 400:
+        raise RuntimeError(f"Seedream failed [{r.status_code}]: {(r.text or '')[:400]}")
+    items = (r.json() or {}).get("data") or []
+    url = items[0].get("url") if items else None
+    if not url:
+        raise RuntimeError(f"No image URL in Seedream response: {r.text[:300]}")
+    return url
+
+
 def normalize_asset_ref(text):
     """'asset-2026…' / 'asset://asset-2026…' → 'asset://asset-2026…' (else None)."""
     t = (text or "").strip()

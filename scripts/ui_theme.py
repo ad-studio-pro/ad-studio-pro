@@ -145,7 +145,7 @@ textarea { font-size: .92rem !important; line-height: 1.5 !important; }
 [data-testid="stSidebar"]{ background: var(--panel); border-right: 1px solid var(--line); }
 
 /* ── top bar ────────────────────────────────────────────── */
-.asp-top{ display:flex; align-items:center; gap:10px; margin: 0 0 14px; }
+.asp-top{ display:flex; align-items:center; gap:10px; margin: 0; }
 .asp-logo{
   width:30px; height:30px; border-radius:9px; background: var(--accent); color: var(--accent-ink);
   display:flex; align-items:center; justify-content:center; font-weight:900; font-size:.9rem;
@@ -191,10 +191,59 @@ def inject_theme() -> None:
     st.markdown(_CSS, unsafe_allow_html=True)
 
 
+_LIGHT_CSS = """
+<style>
+:root{
+  --bg:#F5F5F7; --panel:#FFFFFF; --panel2:#F0F0F3; --line:#E1E1E7;
+  --text:#141417; --muted:#6A6A74; --accent:#C8F560; --accent-ink:#0A0A0B;
+}
+.stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"], [data-testid="stMain"]{
+  background: var(--bg) !important; color: var(--text) !important;
+}
+.stApp p, .stApp li, .stApp h1, .stApp h3, .stApp span, .stApp label,
+[data-testid="stMarkdownContainer"], [data-testid="stExpander"] summary,
+[data-testid="stFileUploaderDropzone"] *, .stApp input, .stApp textarea,
+[data-baseweb="select"] div{ color: var(--text) !important; }
+[data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] *,
+[data-testid="stWidgetLabel"] p{ color: var(--muted) !important; }
+.stApp input::placeholder, .stApp textarea::placeholder{ color:#9a9aa3 !important; }
+[data-baseweb="popover"] ul, [data-baseweb="popover"] li, [data-baseweb="menu"]{
+  background: #fff !important; color: var(--text) !important;
+}
+[data-baseweb="popover"] li:hover{ background: var(--panel2) !important; }
+.stButton > button:hover, .stDownloadButton > button:hover, .stLinkButton > a:hover{
+  background:#E8E8EC !important; color: var(--text) !important; border-color:#cfcfd6 !important;
+}
+.stButton > button[kind="primary"]:disabled{ background:#E4E4E8 !important; color:#9a9aa3 !important; }
+.asp-tag{ color:#3a3a42 !important; }
+.asp-tag.engine{ color:#3F6212 !important; border-color:#bfe38a !important; background:#F4FBE6 !important; }
+.asp-prompt{ color:#4a4a52 !important; }
+[class*="st-key-asp_card_"]{ background:#FFFFFF !important; }
+.st-key-asp_feed{ background: var(--panel2) !important; }
+.st-key-asp_feed::-webkit-scrollbar-thumb{ background:#cfcfd6 !important; }
+[data-testid="stAlert"]{ background:#fff !important; }
+[data-testid="stSidebar"]{ background:#fff !important; }
+[data-testid="stRadio"] [role="radiogroup"] > label:has(input:checked){ background:#F4FBE6 !important; }
+</style>
+"""
+
+
+def _theme_is_light() -> bool:
+    try:
+        if "asp_light" not in st.session_state:
+            st.session_state["asp_light"] = st.query_params.get("theme") == "light"
+    except Exception:
+        st.session_state.setdefault("asp_light", False)
+    return bool(st.session_state.get("asp_light"))
+
+
 def render_topbar(user_email: str = "") -> None:
-    user = f'<span class="asp-user">{user_email}</span>' if user_email else ""
-    st.markdown(
-        f"""
+    _theme_is_light()
+    c_bar, c_tg = st.columns([6, 1.3], vertical_alignment="center")
+    with c_bar:
+        user = f'<span class="asp-user">{user_email}</span>' if user_email else ""
+        st.markdown(
+            f"""
 <div class="asp-top">
   <div class="asp-logo">A</div>
   <div class="asp-brand">Ad Studio Pro</div>
@@ -202,8 +251,20 @@ def render_topbar(user_email: str = "") -> None:
   {user}
 </div>
 """,
-        unsafe_allow_html=True,
-    )
+            unsafe_allow_html=True,
+        )
+    with c_tg:
+        light = st.toggle("☀️ Light", key="asp_light",
+                          help="Switch the whole site between dark and light")
+    try:
+        if light:
+            st.query_params["theme"] = "light"
+        elif st.query_params.get("theme"):
+            del st.query_params["theme"]
+    except Exception:
+        pass
+    if light:
+        st.markdown(_LIGHT_CSS, unsafe_allow_html=True)
 
 
 # Backward-compat: older code calls render_hero
